@@ -1,0 +1,4371 @@
+{
+  "name": "LinkedIn pipeline (post, queue, edit, delete, media)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "claude-linkedin-post",
+        "authentication": "headerAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "5675ee48-d12f-407d-9c32-337d9dc00815",
+      "name": "Webhook from Claude",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        0
+      ],
+      "webhookId": "claude-linkedin-post",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_HEADER_AUTH_CREDENTIAL",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.action ?? \"post\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "post"
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.text ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.confirm ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "POST"
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.image_urls === undefined || $json.body?.image_urls === null || (Array.isArray($json.body.image_urls) && $json.body.image_urls.length <= 20) }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "post"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.action ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "queue"
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.text ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.scheduled_at ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.confirm ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "QUEUE"
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.image_urls === undefined || $json.body?.image_urls === null || (Array.isArray($json.body.image_urls) && $json.body.image_urls.length <= 20) }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  },
+                  {
+                    "leftValue": "={{ DateTime.fromISO(String($json.body?.scheduled_at ?? \"\")).isValid }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "queue"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.action ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "edit"
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.urn ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    },
+                    "rightValue": "urn:li:"
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.text ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.confirm ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "EDIT"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "edit"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.action ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "delete"
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.urn ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "startsWith"
+                    },
+                    "rightValue": "urn:li:"
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.confirm ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "DELETE"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "delete"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.action ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "list"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "list"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.action ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "cancel"
+                  },
+                  {
+                    "leftValue": "={{ String($json.body?.row_id ?? \"\") }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.confirm ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "CANCEL"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "cancel"
+            },
+            {
+              "outputKey": "upload",
+              "renameOutput": true,
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body?.action ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "upload"
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.filename ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.data_base64 ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty",
+                      "singleValue": true
+                    }
+                  },
+                  {
+                    "leftValue": "={{ $json.body?.confirm ?? \"\" }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "UPLOAD"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Rejected"
+        }
+      },
+      "id": "c89d2bd9-43c0-4e4d-8895-d148341e2df4",
+      "name": "Route by action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -208,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Result0",
+              "name": "status",
+              "value": "rejected",
+              "type": "string"
+            },
+            {
+              "id": "Result1",
+              "name": "reason",
+              "value": "Unknown action or missing fields/confirm. Actions: post(text,confirm=POST) | queue(text,scheduled_at,confirm=QUEUE) | edit(urn,text,confirm=EDIT) | delete(urn,confirm=DELETE) | list | cancel(row_id,confirm=CANCEL) | upload(filename,data_base64,confirm=UPLOAD). image_urls must be a list of up to 20 links; scheduled_at must be ISO 8601 with offset. Nothing was done.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "aefc175b-4d9f-4050-a544-8279539cbfe7",
+      "name": "Result: rejected",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        112,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "bd2bd00a-5e8c-421d-9983-6dc343ecb41e",
+      "name": "Every 15 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -480,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_DATA_TABLE_ID",
+          "cachedResultName": "linkedin_posts"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "keyValue": "queued"
+            },
+            {
+              "keyName": "scheduled_at",
+              "condition": "lte",
+              "keyValue": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "limit": 1,
+        "orderBy": true,
+        "orderByColumn": "scheduled_at",
+        "orderByDirection": "ASC"
+      },
+      "id": "c8bbd13d-4208-43c2-a515-7f88b626abbd",
+      "name": "Get next due post",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -208,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Prepar0",
+              "name": "text",
+              "value": "={{ $json.body?.text ?? $json.text ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "Prepar1",
+              "name": "image_url",
+              "value": "={{ ($json.body?.image_url ?? $json.image_url) || ((Array.isArray($json.body?.image_urls) ? $json.body.image_urls : ($json.image_urls ? JSON.parse($json.image_urls) : [])).length == 1 ? (Array.isArray($json.body?.image_urls) ? $json.body.image_urls : ($json.image_urls ? JSON.parse($json.image_urls) : []))[0] : \"\") }}",
+              "type": "string"
+            },
+            {
+              "id": "Prepar2",
+              "name": "article_url",
+              "value": "={{ $json.body?.article_url ?? $json.article_url ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "Prepar3",
+              "name": "article_title",
+              "value": "={{ $json.body?.article_title ?? $json.article_title ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "Prepar4",
+              "name": "article_description",
+              "value": "={{ $json.body?.article_description ?? $json.article_description ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "Prepar5",
+              "name": "media_type",
+              "value": "={{ (Array.isArray($json.body?.image_urls) ? $json.body.image_urls : ($json.image_urls ? JSON.parse($json.image_urls) : [])).length > 1 ? \"MULTI_IMAGE\" : ((($json.body?.image_url ?? $json.image_url) || (Array.isArray($json.body?.image_urls) ? $json.body.image_urls : ($json.image_urls ? JSON.parse($json.image_urls) : [])).length == 1) ? \"IMAGE\" : (($json.body?.article_url ?? $json.article_url) ? \"ARTICLE\" : \"NONE\")) }}",
+              "type": "string"
+            },
+            {
+              "id": "Prepar6",
+              "name": "row_id",
+              "value": "={{ $json.body ? \"\" : String($json.id ?? \"\") }}",
+              "type": "string"
+            },
+            {
+              "id": "Prepar7",
+              "name": "image_urls",
+              "value": "={{ JSON.stringify((Array.isArray($json.body?.image_urls) ? $json.body.image_urls : ($json.image_urls ? JSON.parse($json.image_urls) : []))) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "44ffe78f-c136-4a74-b53e-d89762a96752",
+      "name": "Prepare post",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        96,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.media_type }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "NONE"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.media_type }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "ARTICLE"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "article"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.media_type }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "IMAGE"
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "outputKey": "multi",
+              "renameOutput": true,
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.media_type }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "MULTI_IMAGE"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "28e4d7dd-e5e9-4335-93b6-d5aad9abe3e0",
+      "name": "Media type?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        336,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "person": "YOUR_LINKEDIN_PERSON_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "visibility": "PUBLIC"
+        }
+      },
+      "id": "cc2246a4-c7bc-4a5b-bf24-c95312fdd8ce",
+      "name": "LinkedIn: text post",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -368
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "REPLACE_LINKEDIN_CREDENTIAL",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "person": "YOUR_LINKEDIN_PERSON_ID",
+        "text": "={{ $json.text }}",
+        "shareMediaCategory": "ARTICLE",
+        "additionalFields": {
+          "description": "={{ $json.article_description }}",
+          "originalUrl": "={{ $json.article_url }}",
+          "title": "={{ $json.article_title }}",
+          "visibility": "PUBLIC"
+        }
+      },
+      "id": "7c0e409c-71c2-49aa-943a-979b6a02e191",
+      "name": "LinkedIn: article post",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        608,
+        -208
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "REPLACE_LINKEDIN_CREDENTIAL",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.image_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "id": "6ac1b333-044a-4484-ad55-c00a18daf3ca",
+      "name": "Download image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        608,
+        -48
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "person": "YOUR_LINKEDIN_PERSON_ID",
+        "text": "={{ $json.text }}",
+        "shareMediaCategory": "IMAGE",
+        "additionalFields": {
+          "visibility": "PUBLIC"
+        }
+      },
+      "id": "dffd0737-9c2a-4c63-b3cf-4c65494f9c28",
+      "name": "LinkedIn: image post",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        848,
+        -48
+      ],
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "REPLACE_LINKEDIN_CREDENTIAL",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Post r0",
+              "name": "status",
+              "value": "={{ $json.urn ? \"posted\" : \"failed\" }}",
+              "type": "string"
+            },
+            {
+              "id": "Post r1",
+              "name": "urn",
+              "value": "={{ $json.urn ?? \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "Post r2",
+              "name": "post_url",
+              "value": "={{ $json.urn ? \"https://www.linkedin.com/feed/update/\" + $json.urn + \"/\" : \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "Post r3",
+              "name": "error",
+              "value": "={{ $json.urn ? \"\" : (typeof $json.error === \"object\" ? JSON.stringify($json.error) : String($json.error ?? \"unknown error\")) }}",
+              "type": "string"
+            },
+            {
+              "id": "Post r4",
+              "name": "text",
+              "value": "={{ $('Prepare post').first().json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "Post r5",
+              "name": "media_type",
+              "value": "={{ $('Prepare post').first().json.media_type }}",
+              "type": "string"
+            },
+            {
+              "id": "Post r6",
+              "name": "image_url",
+              "value": "={{ $('Prepare post').first().json.image_url || (JSON.parse($('Prepare post').first().json.image_urls || \"[]\")[0] ?? \"\") }}",
+              "type": "string"
+            },
+            {
+              "id": "Post r7",
+              "name": "article_url",
+              "value": "={{ $('Prepare post').first().json.article_url }}",
+              "type": "string"
+            },
+            {
+              "id": "Post r8",
+              "name": "article_title",
+              "value": "={{ $('Prepare post').first().json.article_title }}",
+              "type": "string"
+            },
+            {
+              "id": "Post r9",
+              "name": "article_description",
+              "value": "={{ $('Prepare post').first().json.article_description }}",
+              "type": "string"
+            },
+            {
+              "id": "Post r10",
+              "name": "row_id",
+              "value": "={{ $('Prepare post').first().json.row_id }}",
+              "type": "string"
+            },
+            {
+              "id": "Post r11",
+              "name": "image_urls",
+              "value": "={{ $('Prepare post').first().json.image_urls }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "45232fbf-1c42-4873-b908-9d8eaf5728eb",
+      "name": "Post result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1088,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.row_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a95dc6cc-80b8-4026-845d-6689a0eff0a4",
+      "name": "From queue?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1344,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_DATA_TABLE_ID",
+          "cachedResultName": "linkedin_posts"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "={{ $json.row_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "={{ $json.status }}",
+            "urn": "={{ $json.urn }}",
+            "post_url": "={{ $json.post_url }}",
+            "posted_at": "={{ $json.status == \"posted\" ? $now.toISO() : null }}",
+            "error": "={{ $json.error }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "urn",
+              "displayName": "urn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "post_url",
+              "displayName": "post_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "posted_at",
+              "displayName": "posted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error",
+              "displayName": "error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2a7853c8-29a0-4e4b-bfde-d194ef90cdff",
+      "name": "Log: update queued row",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1584,
+        -304
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_DATA_TABLE_ID",
+          "cachedResultName": "linkedin_posts"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "text": "={{ $json.text }}",
+            "status": "={{ $json.status }}",
+            "media_type": "={{ $json.media_type }}",
+            "image_url": "={{ $json.image_url }}",
+            "article_url": "={{ $json.article_url }}",
+            "article_title": "={{ $json.article_title }}",
+            "article_description": "={{ $json.article_description }}",
+            "urn": "={{ $json.urn }}",
+            "post_url": "={{ $json.post_url }}",
+            "posted_at": "={{ $json.status == \"posted\" ? $now.toISO() : null }}",
+            "error": "={{ $json.error }}",
+            "image_urls": "={{ $json.image_urls }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "text",
+              "displayName": "text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "media_type",
+              "displayName": "media_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "image_url",
+              "displayName": "image_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "article_url",
+              "displayName": "article_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "article_title",
+              "displayName": "article_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "article_description",
+              "displayName": "article_description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "urn",
+              "displayName": "urn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "post_url",
+              "displayName": "post_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "posted_at",
+              "displayName": "posted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error",
+              "displayName": "error",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "image_urls",
+              "displayName": "image_urls",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "91e131a7-db3e-41f2-a144-3f7ee41781ec",
+      "name": "Log: insert post",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1584,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "x0",
+              "name": "status",
+              "value": "={{ $('Post result').first().json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "x1",
+              "name": "urn",
+              "value": "={{ $('Post result').first().json.urn }}",
+              "type": "string"
+            },
+            {
+              "id": "x2",
+              "name": "post_url",
+              "value": "={{ $('Post result').first().json.post_url }}",
+              "type": "string"
+            },
+            {
+              "id": "x3",
+              "name": "error",
+              "value": "={{ $('Post result').first().json.error }}",
+              "type": "string"
+            },
+            {
+              "id": "x4",
+              "name": "log_row_id",
+              "value": "={{ $('Log: insert post').isExecuted ? $('Log: insert post').first().json.id : $('Log: update queued row').first().json.id }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "89b31681-e729-4fdd-bd6a-d4e2f585bfb0",
+      "name": "Result: post",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2300,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_DATA_TABLE_ID",
+          "cachedResultName": "linkedin_posts"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "text": "={{ $json.body.text }}",
+            "status": "queued",
+            "scheduled_at": "={{ $json.body.scheduled_at }}",
+            "media_type": "={{ ($json.body.image_urls ?? []).length > 1 ? \"MULTI_IMAGE\" : (($json.body.image_url || ($json.body.image_urls ?? []).length == 1) ? \"IMAGE\" : ($json.body.article_url ? \"ARTICLE\" : \"NONE\")) }}",
+            "image_url": "={{ $json.body.image_url || (($json.body.image_urls ?? []).length == 1 ? $json.body.image_urls[0] : \"\") }}",
+            "article_url": "={{ $json.body.article_url ?? \"\" }}",
+            "article_title": "={{ $json.body.article_title ?? \"\" }}",
+            "article_description": "={{ $json.body.article_description ?? \"\" }}",
+            "image_urls": "={{ JSON.stringify($json.body.image_urls ?? []) }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "text",
+              "displayName": "text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "scheduled_at",
+              "displayName": "scheduled_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "media_type",
+              "displayName": "media_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "image_url",
+              "displayName": "image_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "article_url",
+              "displayName": "article_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "article_title",
+              "displayName": "article_title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "article_description",
+              "displayName": "article_description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "image_urls",
+              "displayName": "image_urls",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c060b355-8f11-42db-9026-16e6cf3005ed",
+      "name": "Log: add to queue",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        112,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "x0",
+              "name": "status",
+              "value": "queued",
+              "type": "string"
+            },
+            {
+              "id": "x1",
+              "name": "row_id",
+              "value": "={{ $('Log: add to queue').first().json.id }}",
+              "type": "number"
+            },
+            {
+              "id": "x2",
+              "name": "scheduled_at",
+              "value": "={{ $('Webhook from Claude').first().json.body.scheduled_at }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "abf8ffa9-4013-45de-9aab-eb71fa1acfd0",
+      "name": "Result: queued",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        820,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ \"https://api.linkedin.com/rest/posts/\" + encodeURIComponent($json.body.urn) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "LinkedIn-Version",
+              "value": "202608"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            },
+            {
+              "name": "X-RestLi-Method",
+              "value": "PARTIAL_UPDATE"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ patch: { $set: { commentary: $json.body.text.replace(/[\\\\|{}@\\[\\]()<>*_~]/g, '\\\\$&') } } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "cc2975e9-2d94-496c-aa50-ee33d4184f20",
+      "name": "LinkedIn: edit post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        112,
+        304
+      ],
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "REPLACE_LINKEDIN_CREDENTIAL",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Edit r0",
+              "name": "status",
+              "value": "={{ $json.statusCode < 300 ? \"edited\" : \"failed\" }}",
+              "type": "string"
+            },
+            {
+              "id": "Edit r1",
+              "name": "linkedin_status",
+              "value": "={{ $json.statusCode }}",
+              "type": "number"
+            },
+            {
+              "id": "Edit r2",
+              "name": "linkedin_body",
+              "value": "={{ JSON.stringify($json.body ?? \"\") }}",
+              "type": "string"
+            },
+            {
+              "id": "Edit r3",
+              "name": "urn",
+              "value": "={{ $('Webhook from Claude').first().json.body.urn }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "03deb12e-b209-4952-a037-40eb8cf3b660",
+      "name": "Edit result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        352,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "edited"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f405040b-d38c-415b-92b5-337554923da0",
+      "name": "Edit ok?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        592,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_DATA_TABLE_ID",
+          "cachedResultName": "linkedin_posts"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "urn",
+              "keyValue": "={{ $json.urn }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "text": "={{ $('Webhook from Claude').first().json.body.text }}",
+            "edited_at": "={{ $now.toISO() }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "text",
+              "displayName": "text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "edited_at",
+              "displayName": "edited_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a76f8ca3-4f63-4cb2-8b98-f0417af594c1",
+      "name": "Log: save edited text",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        832,
+        304
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "x0",
+              "name": "status",
+              "value": "edited",
+              "type": "string"
+            },
+            {
+              "id": "x1",
+              "name": "urn",
+              "value": "={{ $('Edit result').first().json.urn }}",
+              "type": "string"
+            },
+            {
+              "id": "x2",
+              "name": "logged",
+              "value": "={{ $('Log: save edited text').first().json.id ? true : false }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b8359ef4-3d03-4902-bcee-041d659a9fc8",
+      "name": "Result: edit",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1312,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ \"https://api.linkedin.com/rest/posts/\" + encodeURIComponent($json.body.urn) }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "LinkedIn-Version",
+              "value": "202608"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "4bed14d4-7969-4959-8f4d-849b6070bc42",
+      "name": "LinkedIn: delete post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        112,
+        512
+      ],
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "REPLACE_LINKEDIN_CREDENTIAL",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Delete0",
+              "name": "status",
+              "value": "={{ $json.statusCode == 204 ? \"deleted\" : \"failed\" }}",
+              "type": "string"
+            },
+            {
+              "id": "Delete1",
+              "name": "linkedin_status",
+              "value": "={{ $json.statusCode }}",
+              "type": "number"
+            },
+            {
+              "id": "Delete2",
+              "name": "linkedin_body",
+              "value": "={{ JSON.stringify($json.body ?? \"\") }}",
+              "type": "string"
+            },
+            {
+              "id": "Delete3",
+              "name": "urn",
+              "value": "={{ $('Webhook from Claude').first().json.body.urn }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d03b0b92-8274-432b-bf3c-00cfbfa2b864",
+      "name": "Delete result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        352,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.status }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "rightValue": "deleted"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f4d5a2b7-ac72-4319-8f39-62c82ab9ff14",
+      "name": "Delete ok?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        592,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_DATA_TABLE_ID",
+          "cachedResultName": "linkedin_posts"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "urn",
+              "keyValue": "={{ $json.urn }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "deleted"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "68eec271-a8d7-4da7-ad92-fe25677932d9",
+      "name": "Log: mark deleted",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        832,
+        512
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "x0",
+              "name": "status",
+              "value": "deleted",
+              "type": "string"
+            },
+            {
+              "id": "x1",
+              "name": "urn",
+              "value": "={{ $('Delete result').first().json.urn }}",
+              "type": "string"
+            },
+            {
+              "id": "x2",
+              "name": "logged",
+              "value": "={{ $('Log: mark deleted').first().json.id ? true : false }}",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2cd51064-a7c4-4cee-afbd-f636aeb112c7",
+      "name": "Result: delete",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1540,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_DATA_TABLE_ID",
+          "cachedResultName": "linkedin_posts"
+        },
+        "limit": 20,
+        "orderBy": true,
+        "orderByColumn": "id",
+        "orderByDirection": "DESC"
+      },
+      "id": "cd2451de-280d-45a6-ad09-44b12c28554a",
+      "name": "Log: recent posts",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        112,
+        704
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_DATA_TABLE_ID",
+          "cachedResultName": "linkedin_posts"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyValue": "={{ $json.body.row_id }}"
+            },
+            {
+              "keyName": "status",
+              "keyValue": "queued"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "cancelled"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a410ee0b-8e3d-4b70-85fd-97d751576bb9",
+      "name": "Log: cancel queued",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        112,
+        800
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "x0",
+              "name": "status",
+              "value": "={{ $('Log: cancel queued').first().json.id ? \"cancelled\" : \"not found or not queued\" }}",
+              "type": "string"
+            },
+            {
+              "id": "x1",
+              "name": "row_id",
+              "value": "={{ $('Webhook from Claude').first().json.body.row_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "747b151e-f4c8-4bf0-b6b4-99f10f1ab54b",
+      "name": "Result: cancel",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        820,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ ($('Post result').first().json.status == \"posted\" ? \"<b>Posted on LinkedIn</b>\" : \"<b>Post FAILED</b>\") + \"\\n\" + ({\"NONE\":\"Text post\",\"ARTICLE\":\"Article post\",\"IMAGE\":\"Image post\",\"MULTI_IMAGE\":\"Multi-image post\"}[$('Post result').first().json.media_type] ?? \"Post\") + \" · \" + $now.setZone($now.zone).toFormat(\"ccc d LLL, HH:mm\") + ($('Post result').first().json.row_id ? \" · from queue #\" + $('Post result').first().json.row_id : \"\") + ($('Post result').first().json.status == \"posted\" ? \"\" : \"\\n\\nReason: <code>\" + String($('Post result').first().json.error ?? \"\").slice(0,300).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($('Post result').first().json.error ?? \"\").length > 300 ? \"…\" : \"\") + \"</code>\") + \"\\n\\n\" + \"<blockquote expandable>\" + String($('Post result').first().json.text ?? \"\").slice(0,3000).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($('Post result').first().json.text ?? \"\").length > 3000 ? \"…\" : \"\") + \"</blockquote>\" + ($('Post result').first().json.article_url ? \"\\n\\nArticle: <a href=\\\"\" + $('Post result').first().json.article_url + \"\\\">\" + String(($('Post result').first().json.article_title || $('Post result').first().json.article_url) ?? \"\").slice(0,120).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String(($('Post result').first().json.article_title || $('Post result').first().json.article_url) ?? \"\").length > 120 ? \"…\" : \"\") + \"</a>\" : \"\") }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": "={{ $('Post result').first().json.media_type != \"ARTICLE\" }}"
+        },
+        "replyMarkup": "={{ $('Post result').first().json.status == \"posted\" ? \"inlineKeyboard\" : \"none\" }}",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Open on LinkedIn",
+                    "additionalFields": {
+                      "url": "={{ \"https://www.linkedin.com/feed/update/\" + $('Post result').first().json.urn + \"/\" }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "b2d497fd-8de8-4af8-b150-2d076a6a666b",
+      "name": "Notify: post",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2060,
+        -200
+      ],
+      "webhookId": "0307da15-af15-4dd1-ac32-956186693cb3",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ \"<b>Queued</b> · goes out \" + DateTime.fromISO(String($('Webhook from Claude').first().json.body.scheduled_at)).setZone($now.zone).toFormat(\"ccc d LLL, HH:mm\") + \"\\n\" + ({\"NONE\":\"Text post\",\"ARTICLE\":\"Article post\",\"IMAGE\":\"Image post\",\"MULTI_IMAGE\":\"Multi-image post\"}[$(\"Log: add to queue\").first().json.media_type] ?? \"Post\") + \" · queue #\" + $(\"Log: add to queue\").first().json.id + \"\\n\\n\" + \"<blockquote expandable>\" + String($('Webhook from Claude').first().json.body.text ?? \"\").slice(0,3000).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($('Webhook from Claude').first().json.body.text ?? \"\").length > 3000 ? \"…\" : \"\") + \"</blockquote>\" + ($('Webhook from Claude').first().json.body.article_url ? \"\\n\\nArticle: <a href=\\\"\" + $('Webhook from Claude').first().json.body.article_url + \"\\\">\" + String(($('Webhook from Claude').first().json.body.article_title || $('Webhook from Claude').first().json.body.article_url) ?? \"\").slice(0,120).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String(($('Webhook from Claude').first().json.body.article_title || $('Webhook from Claude').first().json.body.article_url) ?? \"\").length > 120 ? \"…\" : \"\") + \"</a>\" : \"\") }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": "={{ !$('Webhook from Claude').first().json.body.article_url }}"
+        }
+      },
+      "id": "c808f3bd-13c7-445f-829f-f6c4c5731661",
+      "name": "Notify: queued",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        580,
+        100
+      ],
+      "webhookId": "2377a4c1-d233-4e16-8c0a-563ae02aebd6",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ \"<b>Post edited</b> · \" + $now.setZone($now.zone).toFormat(\"ccc d LLL, HH:mm\") + \"\\n\\n\" + \"<blockquote expandable>\" + String($('Webhook from Claude').first().json.body.text ?? \"\").slice(0,3000).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($('Webhook from Claude').first().json.body.text ?? \"\").length > 3000 ? \"…\" : \"\") + \"</blockquote>\" }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": "={{ true }}"
+        },
+        "replyMarkup": "={{ true ? \"inlineKeyboard\" : \"none\" }}",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Open on LinkedIn",
+                    "additionalFields": {
+                      "url": "={{ \"https://www.linkedin.com/feed/update/\" + $('Webhook from Claude').first().json.body.urn + \"/\" }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "2c2816f3-cce8-4b3e-a6cd-cb12243b130f",
+      "name": "Notify: edited",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1060,
+        300
+      ],
+      "webhookId": "f3f66650-7c48-470a-b651-4b3189092081",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ \"<b>Edit FAILED</b> · LinkedIn \" + $(\"Edit result\").first().json.linkedin_status + \"\\nThe post was not changed.\\n\\n<code>\" + String($(\"Edit result\").first().json.linkedin_body ?? \"\").slice(0,300).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($(\"Edit result\").first().json.linkedin_body ?? \"\").length > 300 ? \"…\" : \"\") + \"</code>\" }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": "={{ true }}"
+        },
+        "replyMarkup": "={{ true ? \"inlineKeyboard\" : \"none\" }}",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Open on LinkedIn",
+                    "additionalFields": {
+                      "url": "={{ \"https://www.linkedin.com/feed/update/\" + $('Webhook from Claude').first().json.body.urn + \"/\" }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "2d325e70-5018-42e0-9b0c-4c6258e716ee",
+      "name": "Notify: edit failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        820,
+        420
+      ],
+      "webhookId": "c7234bd3-1624-4c03-a06a-e4111645fdff",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ \"<b>Post deleted</b>\\n\" + ($('Log: mark deleted').first().json.media_type ? ({\"NONE\":\"Text post\",\"ARTICLE\":\"Article post\",\"IMAGE\":\"Image post\",\"MULTI_IMAGE\":\"Multi-image post\"}[$('Log: mark deleted').first().json.media_type] ?? \"Post\") + \" · \" : \"\") + $now.setZone($now.zone).toFormat(\"ccc d LLL, HH:mm\") + ($('Log: mark deleted').first().json.text ? \"\\n\\n\" + \"<blockquote expandable>\" + String($('Log: mark deleted').first().json.text ?? \"\").slice(0,3000).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($('Log: mark deleted').first().json.text ?? \"\").length > 3000 ? \"…\" : \"\") + \"</blockquote>\" : \"\\n<code>\" + $('Webhook from Claude').first().json.body.urn + \"</code>\") }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": "={{ true }}"
+        }
+      },
+      "id": "372c63d7-03f6-4667-9d30-62bfdab0196a",
+      "name": "Notify: deleted",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1300,
+        500
+      ],
+      "webhookId": "6ca9be22-6e0c-4b91-ba35-a72e11872edf",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ \"<b>Delete FAILED</b> · LinkedIn \" + $(\"Delete result\").first().json.linkedin_status + \"\\nThe post is still live.\\n\\n<code>\" + String($(\"Delete result\").first().json.linkedin_body ?? \"\").slice(0,300).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($(\"Delete result\").first().json.linkedin_body ?? \"\").length > 300 ? \"…\" : \"\") + \"</code>\" }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": "={{ true }}"
+        },
+        "replyMarkup": "={{ true ? \"inlineKeyboard\" : \"none\" }}",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Open on LinkedIn",
+                    "additionalFields": {
+                      "url": "={{ \"https://www.linkedin.com/feed/update/\" + $('Webhook from Claude').first().json.body.urn + \"/\" }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "b377d184-7cf2-4383-858a-c79b6b361b28",
+      "name": "Notify: delete failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        820,
+        620
+      ],
+      "webhookId": "284a48a3-a503-4c7a-b4f0-34b925df2df5",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $('Log: cancel queued').first().json.id ? \"<b>Removed from queue</b>\\nWas set for \" + ($('Log: cancel queued').first().json.scheduled_at ? DateTime.fromISO(String($('Log: cancel queued').first().json.scheduled_at)).setZone($now.zone).toFormat(\"ccc d LLL, HH:mm\") : \"?\") + \" · queue #\" + $('Log: cancel queued').first().json.id + \"\\n\\n\" + \"<blockquote expandable>\" + String($('Log: cancel queued').first().json.text ?? \"\").slice(0,3000).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($('Log: cancel queued').first().json.text ?? \"\").length > 3000 ? \"…\" : \"\") + \"</blockquote>\" : \"<b>Cancel did nothing</b>\\nQueue #\" + $('Webhook from Claude').first().json.body.row_id + \" was not found or is not queued.\" }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": "={{ true }}"
+        }
+      },
+      "id": "a4c96dcc-194a-4c1c-bc81-eb20a7df550e",
+      "name": "Notify: cancelled",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        580,
+        800
+      ],
+      "webhookId": "bba3e165-e1d7-4d46-a772-25723cc56f37",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8
+            }
+          ]
+        }
+      },
+      "id": "c43a81df-b809-461f-bf07-b9f1ca421819",
+      "name": "Every morning 8:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -480,
+        -704
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_DATA_TABLE_ID",
+          "cachedResultName": "linkedin_posts"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "keyValue": "queued"
+            }
+          ]
+        },
+        "returnAll": true,
+        "orderBy": true,
+        "orderByColumn": "scheduled_at",
+        "orderByDirection": "ASC"
+      },
+      "id": "bdfa0931-e73c-4f4e-bd65-de3fd6e9c19f",
+      "name": "Get queued posts",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -176,
+        -896
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "posts",
+        "options": {}
+      },
+      "id": "9127436d-0c90-4a6e-8699-f626c70e2371",
+      "name": "Collect queue",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -896
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ \"<b>LinkedIn queue</b> · \" + $json.posts.length + \" scheduled\\n\\n\" + $json.posts.map(p => \"<b>\" + DateTime.fromISO(String(p.scheduled_at)).setZone($now.zone).toFormat(\"ccc d LLL, HH:mm\") + \"</b> · #\" + p.id + \" · \" + ({\"NONE\":\"Text post\",\"ARTICLE\":\"Article post\",\"IMAGE\":\"Image post\",\"MULTI_IMAGE\":\"Multi-image post\"}[p.media_type] ?? \"Post\").replace(\" post\",\"\").toLowerCase() + \"\\n\" + String(String(p.text ?? \"\").replace(/\\s+/g,\" \") ?? \"\").slice(0,90).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String(String(p.text ?? \"\").replace(/\\s+/g,\" \") ?? \"\").length > 90 ? \"…\" : \"\")).join(\"\\n\\n\") }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "parse_mode": "HTML",
+          "disable_web_page_preview": "={{ true }}"
+        }
+      },
+      "id": "01447160-f003-4abd-99db-1c9763355ad7",
+      "name": "Notify: daily queue",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        280,
+        -700
+      ],
+      "webhookId": "6f7f64eb-b3fc-4eb4-a8d8-ec80b0fb1497",
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Result0",
+              "name": "status",
+              "value": "failed",
+              "type": "string"
+            },
+            {
+              "id": "Result1",
+              "name": "linkedin_status",
+              "value": "={{ $('Edit result').first().json.linkedin_status }}",
+              "type": "number"
+            },
+            {
+              "id": "Result2",
+              "name": "linkedin_body",
+              "value": "={{ $('Edit result').first().json.linkedin_body }}",
+              "type": "string"
+            },
+            {
+              "id": "Result3",
+              "name": "urn",
+              "value": "={{ $('Edit result').first().json.urn }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "04081b10-7d86-439f-ad44-dbbf9b232174",
+      "name": "Result: edit failed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1072,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Result0",
+              "name": "status",
+              "value": "failed",
+              "type": "string"
+            },
+            {
+              "id": "Result1",
+              "name": "linkedin_status",
+              "value": "={{ $('Delete result').first().json.linkedin_status }}",
+              "type": "number"
+            },
+            {
+              "id": "Result2",
+              "name": "linkedin_body",
+              "value": "={{ $('Delete result').first().json.linkedin_body }}",
+              "type": "string"
+            },
+            {
+              "id": "Result3",
+              "name": "urn",
+              "value": "={{ $('Delete result').first().json.urn }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7d0ce247-2565-4029-8ef6-e80329e05690",
+      "name": "Result: delete failed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1072,
+        624
+      ]
+    },
+    {
+      "id": "9411abf2-c08c-45bb-bc51-dc9bcd82833e",
+      "name": "Has image? (post)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1820,
+        -200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Post result').first().json.image_url }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c213d758-df8f-4788-94a2-b426b19a066c",
+      "name": "Notify: post (photo)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2060,
+        -320
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendPhoto",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "binaryData": false,
+        "file": "={{ $('Post result').first().json.image_url }}",
+        "additionalFields": {
+          "caption": "={{ ($('Post result').first().json.status == \"posted\" ? \"<b>Posted on LinkedIn</b>\" : \"<b>Post FAILED</b>\") + \"\\n\" + ({\"NONE\":\"Text post\",\"ARTICLE\":\"Article post\",\"IMAGE\":\"Image post\",\"MULTI_IMAGE\":\"Multi-image post\"}[$('Post result').first().json.media_type] ?? \"Post\") + \" · \" + $now.setZone($now.zone).toFormat(\"ccc d LLL, HH:mm\") + ($('Post result').first().json.row_id ? \" · from queue #\" + $('Post result').first().json.row_id : \"\") + ($('Post result').first().json.status == \"posted\" ? \"\" : \"\\n\\nReason: <code>\" + String($('Post result').first().json.error ?? \"\").slice(0,300).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($('Post result').first().json.error ?? \"\").length > 300 ? \"…\" : \"\") + \"</code>\") + \"\\n\\n\" + \"<blockquote expandable>\" + String($('Post result').first().json.text ?? \"\").slice(0,700).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($('Post result').first().json.text ?? \"\").length > 700 ? \"…\" : \"\") + \"</blockquote>\" }}",
+          "parse_mode": "HTML"
+        },
+        "replyMarkup": "={{ $('Post result').first().json.status == \"posted\" ? \"inlineKeyboard\" : \"none\" }}",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "Open on LinkedIn",
+                    "additionalFields": {
+                      "url": "={{ \"https://www.linkedin.com/feed/update/\" + $('Post result').first().json.urn + \"/\" }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "onError": "continueErrorOutput",
+      "webhookId": "95f0bdea-24e9-47ac-ac41-d70081f34ee8",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "a840f5f2-8656-456e-a754-658463b967ec",
+      "name": "Has image? (queued)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        340,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ ($('Webhook from Claude').first().json.body.image_url || ($('Webhook from Claude').first().json.body.image_urls || [])[0] || \"\") }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "55bd8add-4d4d-4fae-95e3-3c95ab919abc",
+      "name": "Notify: queued (photo)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        580,
+        -20
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendPhoto",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "binaryData": false,
+        "file": "={{ ($('Webhook from Claude').first().json.body.image_url || ($('Webhook from Claude').first().json.body.image_urls || [])[0] || \"\") }}",
+        "additionalFields": {
+          "caption": "={{ \"<b>Queued</b> · goes out \" + DateTime.fromISO(String($('Webhook from Claude').first().json.body.scheduled_at)).setZone($now.zone).toFormat(\"ccc d LLL, HH:mm\") + \"\\n\" + ({\"NONE\":\"Text post\",\"ARTICLE\":\"Article post\",\"IMAGE\":\"Image post\",\"MULTI_IMAGE\":\"Multi-image post\"}[$(\"Log: add to queue\").first().json.media_type] ?? \"Post\") + \" · queue #\" + $(\"Log: add to queue\").first().json.id + \"\\n\\n\" + \"<blockquote expandable>\" + String($('Webhook from Claude').first().json.body.text ?? \"\").slice(0,700).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($('Webhook from Claude').first().json.body.text ?? \"\").length > 700 ? \"…\" : \"\") + \"</blockquote>\" }}",
+          "parse_mode": "HTML"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "webhookId": "a51e9be0-feb2-4428-82a4-d67e542bc8fe",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "fc5290b2-b220-4ae1-8da8-a4592f6e5d65",
+      "name": "Has image? (deleted)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1060,
+        500
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ ($('Log: mark deleted').first().json.image_url || JSON.parse($('Log: mark deleted').first().json.image_urls || \"[]\")[0] || \"\") }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b98d5b28-4c85-4e92-80ba-05cada7bc690",
+      "name": "Notify: deleted (photo)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1300,
+        380
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendPhoto",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "binaryData": false,
+        "file": "={{ ($('Log: mark deleted').first().json.image_url || JSON.parse($('Log: mark deleted').first().json.image_urls || \"[]\")[0] || \"\") }}",
+        "additionalFields": {
+          "caption": "={{ \"<b>Post deleted</b>\\n\" + ($('Log: mark deleted').first().json.media_type ? ({\"NONE\":\"Text post\",\"ARTICLE\":\"Article post\",\"IMAGE\":\"Image post\",\"MULTI_IMAGE\":\"Multi-image post\"}[$('Log: mark deleted').first().json.media_type] ?? \"Post\") + \" · \" : \"\") + $now.setZone($now.zone).toFormat(\"ccc d LLL, HH:mm\") + \"\\n\\n\" + \"<blockquote expandable>\" + String($('Log: mark deleted').first().json.text ?? \"\").slice(0,700).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($('Log: mark deleted').first().json.text ?? \"\").length > 700 ? \"…\" : \"\") + \"</blockquote>\" }}",
+          "parse_mode": "HTML"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "webhookId": "fdaf8ef3-75de-4cde-ae04-4cf7da74a3ba",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "d9a3ae07-a7d9-459e-85a9-0a035dad919e",
+      "name": "Has image? (cancelled)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        340,
+        800
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ ($('Log: cancel queued').first().json.image_url || JSON.parse($('Log: cancel queued').first().json.image_urls || \"[]\")[0] || \"\") }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f7910045-20f7-446a-b646-9c2680929ede",
+      "name": "Notify: cancelled (photo)",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        580,
+        680
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "sendPhoto",
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "binaryData": false,
+        "file": "={{ ($('Log: cancel queued').first().json.image_url || JSON.parse($('Log: cancel queued').first().json.image_urls || \"[]\")[0] || \"\") }}",
+        "additionalFields": {
+          "caption": "={{ \"<b>Removed from queue</b>\\nWas set for \" + ($('Log: cancel queued').first().json.scheduled_at ? DateTime.fromISO(String($('Log: cancel queued').first().json.scheduled_at)).setZone($now.zone).toFormat(\"ccc d LLL, HH:mm\") : \"?\") + \" · queue #\" + $('Log: cancel queued').first().json.id + \"\\n\\n\" + \"<blockquote expandable>\" + String($('Log: cancel queued').first().json.text ?? \"\").slice(0,700).replace(/&/g,\"&amp;\").replace(/</g,\"&lt;\").replace(/>/g,\"&gt;\") + (String($('Log: cancel queued').first().json.text ?? \"\").length > 700 ? \"…\" : \"\") + \"</blockquote>\" }}",
+          "parse_mode": "HTML"
+        }
+      },
+      "onError": "continueErrorOutput",
+      "webhookId": "a9fac217-0642-4b98-b2dc-1dbd626b002e",
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_TELEGRAM_CREDENTIAL",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "id": "ed07bd6d-f461-4298-a10b-fc196a84bd92",
+      "name": "Image list",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        620,
+        140
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Image 0",
+              "name": "images",
+              "value": "={{ JSON.parse($json.image_urls) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a083f398-cef0-4b68-b998-d4ca09ddf0eb",
+      "name": "One item per image",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        860,
+        140
+      ],
+      "parameters": {
+        "fieldToSplitOut": "images",
+        "options": {}
+      }
+    },
+    {
+      "id": "0f1cf4b1-e9fe-4316-8ec4-6c316a91a8c3",
+      "name": "LinkedIn: init image upload",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        140
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/rest/images?action=initializeUpload",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "LinkedIn-Version",
+              "value": "202608"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ initializeUploadRequest: { owner: \"urn:li:person:YOUR_LINKEDIN_PERSON_ID\" } }) }}",
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "REPLACE_LINKEDIN_CREDENTIAL",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "id": "a5b02e05-777f-472b-9dbf-302f535899cf",
+      "name": "Download image (multi)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1340,
+        140
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('One item per image').item.json.images }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "data"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "cfb9f8cb-9d7e-4e68-beb5-e249105fded6",
+      "name": "LinkedIn: upload image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1580,
+        140
+      ],
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('LinkedIn: init image upload').item.json.value.uploadUrl }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "REPLACE_LINKEDIN_CREDENTIAL",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "id": "b074da38-8630-4820-897f-ec194da9c5fb",
+      "name": "Image URN",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1820,
+        140
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Image 0",
+              "name": "image",
+              "value": "={{ $('LinkedIn: init image upload').item.json.value.image }}",
+              "type": "string"
+            },
+            {
+              "id": "Image 1",
+              "name": "upload_status",
+              "value": "={{ $json.statusCode }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "d61a6d5d-190f-4a8d-9433-041566fe1031",
+      "name": "Collect image URNs",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2060,
+        140
+      ],
+      "parameters": {
+        "aggregate": "aggregateIndividualFields",
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "image"
+            },
+            {
+              "fieldToAggregate": "upload_status"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f7a7d9a9-4f6d-4b77-a0bd-eed087137508",
+      "name": "LinkedIn: multi-image post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2540,
+        140
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/rest/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "linkedInOAuth2Api",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "LinkedIn-Version",
+              "value": "202608"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ author: \"urn:li:person:YOUR_LINKEDIN_PERSON_ID\", commentary: $('Prepare post').first().json.text.replace(/[\\\\|{}@\\[\\]()<>*_~]/g, '\\\\$&'), visibility: \"PUBLIC\", distribution: { feedDistribution: \"MAIN_FEED\", targetEntities: [], thirdPartyDistributionChannels: [] }, content: { multiImage: { images: $json.image.map(u => ({ id: u, altText: \"\" })) } }, lifecycleState: \"PUBLISHED\", isReshareDisabledByAuthor: false }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "REPLACE_LINKEDIN_CREDENTIAL",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "id": "ea3d47d2-e4f3-4d6d-ad9f-a58eaa1d33a9",
+      "name": "Multi-image result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2780,
+        140
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Multi-0",
+              "name": "urn",
+              "value": "={{ $json.statusCode < 300 ? ($json.headers?.[\"x-restli-id\"] ?? \"\") : \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "Multi-1",
+              "name": "error",
+              "value": "={{ $json.statusCode < 300 ? \"\" : \"LinkedIn \" + $json.statusCode + \": \" + JSON.stringify($json.body ?? \"\") }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "8a4454fd-aef2-4d0e-aae9-845c8288bc12",
+      "name": "Prepare upload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        100,
+        1000
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Prepar0",
+              "name": "file_name",
+              "value": "={{ $now.toFormat('yyyyLLdd') + '-' + Math.random().toString(36).slice(2,8) + '-' + String($json.body.filename).toLowerCase().replace(/[^a-z0-9._-]/g,'-').replace(/^[.-]+/,'').slice(-60) }}",
+              "type": "string"
+            },
+            {
+              "id": "Prepar1",
+              "name": "data",
+              "value": "={{ String($json.body.data_base64).replace(/^data:[^,]+,/, '') }}",
+              "type": "string"
+            },
+            {
+              "id": "Prepar2",
+              "name": "mime_type",
+              "value": "={{ $json.body.mime_type || ({png:\"image/png\",jpg:\"image/jpeg\",jpeg:\"image/jpeg\",gif:\"image/gif\",webp:\"image/webp\"})[String($json.body.filename).toLowerCase().split(\".\").pop()] || \"application/octet-stream\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "03526066-de5a-4b3b-981e-7b1decb4acd4",
+      "name": "Base64 to file",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        340,
+        1000
+      ],
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data",
+        "binaryPropertyName": "data",
+        "options": {
+          "fileName": "={{ $json.file_name }}",
+          "mimeType": "={{ $json.mime_type }}"
+        }
+      }
+    },
+    {
+      "id": "192feffd-2832-4a64-87e8-0afe8c47b7f9",
+      "name": "Save to disk",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        580,
+        1000
+      ],
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/home/node/.n8n-files/{{ $('Prepare upload').first().json.file_name }}",
+        "dataPropertyName": "data",
+        "options": {}
+      }
+    },
+    {
+      "id": "d9d601d8-54f7-4732-a731-4e1612a10536",
+      "name": "Result: upload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        820,
+        1000
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Result0",
+              "name": "status",
+              "value": "uploaded",
+              "type": "string"
+            },
+            {
+              "id": "Result1",
+              "name": "file_name",
+              "value": "={{ $('Prepare upload').first().json.file_name }}",
+              "type": "string"
+            },
+            {
+              "id": "Result2",
+              "name": "url",
+              "value": "=https://YOUR_N8N_DOMAIN/webhook/media?f={{ $('Prepare upload').first().json.file_name }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "505811ad-d85d-4a7d-8187-b6e0bf81b61d",
+      "name": "Media link",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        1250
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "media",
+        "authentication": "none",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "03c7465f-3bbb-403f-bfeb-9f6603db3b6b"
+    },
+    {
+      "id": "0d1604e8-b1a1-491f-95c9-4a2b48c904a5",
+      "name": "Read media file",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        -200,
+        1250
+      ],
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "=/home/node/.n8n-files/{{ String($json.query?.f ?? '').replace(/[^a-zA-Z0-9._-]/g,'').replace(/^[.]+/,'') || 'missing' }}",
+        "options": {
+          "dataPropertyName": "data"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "607a2fb7-7fd0-44a5-a407-da9cdbef57e3",
+      "name": "Send image",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        220,
+        1200
+      ],
+      "parameters": {
+        "respondWith": "binary",
+        "responseDataSource": "set",
+        "inputFieldName": "data",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Cache-Control",
+                "value": "public, max-age=86400"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "73458469-8fd0-45de-bdff-6d26e7cf2759",
+      "name": "Not found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        220,
+        1340
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "not found",
+        "options": {
+          "responseCode": 404
+        }
+      }
+    },
+    {
+      "id": "4bf59e06-38d5-4bf6-9f9b-f4e02d014492",
+      "name": "Every night 3:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -480,
+        1550
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days",
+              "daysInterval": 1,
+              "triggerAtHour": 3,
+              "triggerAtMinute": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "70d8d0bd-e282-46cf-8ff6-3707fd465ba9",
+      "name": "Get all logged posts",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        -200,
+        1550
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_DATA_TABLE_ID",
+          "cachedResultName": "linkedin_posts"
+        },
+        "returnAll": true
+      }
+    },
+    {
+      "id": "11938be3-d34c-459b-9226-14589e1167d6",
+      "name": "Older than 7 days, has media?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        40,
+        1550
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.media_cleaned !== true && $json.status !== \"queued\" && ([ $json.image_url, ...JSON.parse($json.image_urls || \"[]\") ].some(u => String(u || \"\").includes(\"/webhook/media?f=\"))) && DateTime.fromISO(String($json.posted_at || $json.updatedAt)) < $now.minus({ days: 7 }) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "894c8312-320a-47dc-b4b0-d4943b1c62e2",
+      "name": "Media files of post",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        280,
+        1550
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Media 0",
+              "name": "row_id",
+              "value": "={{ $json.id }}",
+              "type": "number"
+            },
+            {
+              "id": "Media 1",
+              "name": "files",
+              "value": "={{ [ $json.image_url, ...JSON.parse($json.image_urls || \"[]\") ].filter(u => String(u || \"\").includes(\"/webhook/media?f=\")).map(u => String(u).split(\"?f=\")[1].replace(/[^a-zA-Z0-9._-]/g, \"\")).filter(f => f) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f85dfe84-bf4b-408d-afff-3f901f4c0282",
+      "name": "One item per file",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1.1,
+      "position": [
+        520,
+        1550
+      ],
+      "parameters": {
+        "fieldToSplitOut": "files",
+        "include": "allOtherFields",
+        "options": {
+          "destinationFieldName": "file"
+        }
+      }
+    },
+    {
+      "id": "fe5223cf-3d75-4fbc-9c94-9b67390e5799",
+      "name": "Empty content",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        760,
+        1550
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Empty 0",
+              "name": "row_id",
+              "value": "={{ $json.row_id }}",
+              "type": "number"
+            },
+            {
+              "id": "Empty 1",
+              "name": "file",
+              "value": "={{ $json.file }}",
+              "type": "string"
+            },
+            {
+              "id": "Empty 2",
+              "name": "data",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "1aa2a774-7b4e-4da8-895c-8425301db62e",
+      "name": "Make empty file",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1000,
+        1550
+      ],
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "data",
+        "binaryPropertyName": "data",
+        "options": {
+          "fileName": "={{ $json.file }}"
+        }
+      }
+    },
+    {
+      "id": "51c9fa3d-b55f-4708-8144-982d55567fce",
+      "name": "Overwrite image with empty file",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        1240,
+        1550
+      ],
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/home/node/.n8n-files/{{ $('Empty content').item.json.file }}",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "1e180c4e-0bed-4c57-98b7-1b8213bc86d2",
+      "name": "Log: mark media cleaned",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1480,
+        1550
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_DATA_TABLE_ID",
+          "cachedResultName": "linkedin_posts"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Empty content').item.json.row_id }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "media_cleaned": true
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "media_cleaned",
+              "displayName": "media_cleaned",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "boolean",
+              "canBeUsedToMatch": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fe9e844d-4711-44da-aee3-edd61a3df985",
+      "name": "File still has content?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -40,
+        1250
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ ($binary.data?.fileSize ?? '').toString() }}",
+              "rightValue": "^0(\\.0+)?\\s?[kMG]?B$",
+              "operator": {
+                "type": "string",
+                "operation": "notRegex"
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "62204174-b58d-4f32-9312-fffb95c74a01",
+      "name": "All images uploaded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2300,
+        260
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.image.length >= 2 && $json.image.every(i => !!i) && $json.upload_status.every(s => Number(s) >= 200 && Number(s) < 300) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a7c3e8a2-1653-4ab8-9e04-0f79146b23f6",
+      "name": "Image upload failed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2540,
+        380
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "Image 0",
+              "name": "urn",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "Image 1",
+              "name": "error",
+              "value": "={{ \"Image upload failed before posting. Upload statuses: \" + JSON.stringify($json.upload_status) + \". Check that every image link is reachable from the n8n server.\" }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "c41eeaf5-0e3d-42ad-8616-0452e6b5bc1f",
+      "name": "Result: list",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        340,
+        700
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "l1",
+              "name": "posts",
+              "value": "={{ $input.all().map(i => i.json).filter(j => j.id !== undefined) }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "executeOnce": true
+    }
+  ],
+  "connections": {
+    "Webhook from Claude": {
+      "main": [
+        [
+          {
+            "node": "Route by action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by action": {
+      "main": [
+        [
+          {
+            "node": "Prepare post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log: add to queue",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LinkedIn: edit post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LinkedIn: delete post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log: recent posts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log: cancel queued",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare upload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Result: rejected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every 15 minutes": {
+      "main": [
+        [
+          {
+            "node": "Get next due post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get next due post": {
+      "main": [
+        [
+          {
+            "node": "Prepare post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare post": {
+      "main": [
+        [
+          {
+            "node": "Media type?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Media type?": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn: text post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "LinkedIn: article post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Image list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download image": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn: image post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn: text post": {
+      "main": [
+        [
+          {
+            "node": "Post result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn: article post": {
+      "main": [
+        [
+          {
+            "node": "Post result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn: image post": {
+      "main": [
+        [
+          {
+            "node": "Post result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post result": {
+      "main": [
+        [
+          {
+            "node": "From queue?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "From queue?": {
+      "main": [
+        [
+          {
+            "node": "Log: update queued row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log: insert post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn: edit post": {
+      "main": [
+        [
+          {
+            "node": "Edit result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit result": {
+      "main": [
+        [
+          {
+            "node": "Edit ok?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit ok?": {
+      "main": [
+        [
+          {
+            "node": "Log: save edited text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify: edit failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn: delete post": {
+      "main": [
+        [
+          {
+            "node": "Delete result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete result": {
+      "main": [
+        [
+          {
+            "node": "Delete ok?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete ok?": {
+      "main": [
+        [
+          {
+            "node": "Log: mark deleted",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify: delete failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: post": {
+      "main": [
+        [
+          {
+            "node": "Result: post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: queued": {
+      "main": [
+        [
+          {
+            "node": "Result: queued",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: save edited text": {
+      "main": [
+        [
+          {
+            "node": "Notify: edited",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: edited": {
+      "main": [
+        [
+          {
+            "node": "Result: edit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: edit failed": {
+      "main": [
+        [
+          {
+            "node": "Result: edit failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: deleted": {
+      "main": [
+        [
+          {
+            "node": "Result: delete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: delete failed": {
+      "main": [
+        [
+          {
+            "node": "Result: delete failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: cancelled": {
+      "main": [
+        [
+          {
+            "node": "Result: cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every morning 8:00": {
+      "main": [
+        [
+          {
+            "node": "Get queued posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get queued posts": {
+      "main": [
+        [
+          {
+            "node": "Collect queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect queue": {
+      "main": [
+        [
+          {
+            "node": "Notify: daily queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: update queued row": {
+      "main": [
+        [
+          {
+            "node": "Has image? (post)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: insert post": {
+      "main": [
+        [
+          {
+            "node": "Has image? (post)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has image? (post)": {
+      "main": [
+        [
+          {
+            "node": "Notify: post (photo)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify: post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: post (photo)": {
+      "main": [
+        [
+          {
+            "node": "Result: post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify: post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: add to queue": {
+      "main": [
+        [
+          {
+            "node": "Has image? (queued)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has image? (queued)": {
+      "main": [
+        [
+          {
+            "node": "Notify: queued (photo)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify: queued",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: queued (photo)": {
+      "main": [
+        [
+          {
+            "node": "Result: queued",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify: queued",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: mark deleted": {
+      "main": [
+        [
+          {
+            "node": "Has image? (deleted)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has image? (deleted)": {
+      "main": [
+        [
+          {
+            "node": "Notify: deleted (photo)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify: deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: deleted (photo)": {
+      "main": [
+        [
+          {
+            "node": "Result: delete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify: deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: cancel queued": {
+      "main": [
+        [
+          {
+            "node": "Has image? (cancelled)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has image? (cancelled)": {
+      "main": [
+        [
+          {
+            "node": "Notify: cancelled (photo)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify: cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify: cancelled (photo)": {
+      "main": [
+        [
+          {
+            "node": "Result: cancel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify: cancelled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image list": {
+      "main": [
+        [
+          {
+            "node": "One item per image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One item per image": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn: init image upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn: init image upload": {
+      "main": [
+        [
+          {
+            "node": "Download image (multi)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download image (multi)": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn: upload image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn: upload image": {
+      "main": [
+        [
+          {
+            "node": "Image URN",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image URN": {
+      "main": [
+        [
+          {
+            "node": "Collect image URNs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn: multi-image post": {
+      "main": [
+        [
+          {
+            "node": "Multi-image result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Multi-image result": {
+      "main": [
+        [
+          {
+            "node": "Post result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare upload": {
+      "main": [
+        [
+          {
+            "node": "Base64 to file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Base64 to file": {
+      "main": [
+        [
+          {
+            "node": "Save to disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to disk": {
+      "main": [
+        [
+          {
+            "node": "Result: upload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Media link": {
+      "main": [
+        [
+          {
+            "node": "Read media file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read media file": {
+      "main": [
+        [
+          {
+            "node": "File still has content?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File still has content?": {
+      "main": [
+        [
+          {
+            "node": "Send image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Every night 3:00": {
+      "main": [
+        [
+          {
+            "node": "Get all logged posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get all logged posts": {
+      "main": [
+        [
+          {
+            "node": "Older than 7 days, has media?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Older than 7 days, has media?": {
+      "main": [
+        [
+          {
+            "node": "Media files of post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Media files of post": {
+      "main": [
+        [
+          {
+            "node": "One item per file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One item per file": {
+      "main": [
+        [
+          {
+            "node": "Empty content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Empty content": {
+      "main": [
+        [
+          {
+            "node": "Make empty file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make empty file": {
+      "main": [
+        [
+          {
+            "node": "Overwrite image with empty file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Overwrite image with empty file": {
+      "main": [
+        [
+          {
+            "node": "Log: mark media cleaned",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect image URNs": {
+      "main": [
+        [
+          {
+            "node": "All images uploaded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All images uploaded?": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn: multi-image post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Image upload failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image upload failed": {
+      "main": [
+        [
+          {
+            "node": "Post result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log: recent posts": {
+      "main": [
+        [
+          {
+            "node": "Result: list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timezone": "Europe/Paris"
+  },
+  "nodeGroups": [
+    {
+      "id": "7589349a-5633-4757-bbcb-4aeb2e167321",
+      "name": "Publish (text / article / image / multi-image)",
+      "nodeNames": [
+        "Prepare post",
+        "Media type?",
+        "LinkedIn: text post",
+        "LinkedIn: article post",
+        "Download image",
+        "LinkedIn: image post",
+        "Image list",
+        "One item per image",
+        "LinkedIn: init image upload",
+        "Download image (multi)",
+        "LinkedIn: upload image",
+        "Image URN",
+        "Collect image URNs",
+        "All images uploaded?",
+        "LinkedIn: multi-image post",
+        "Multi-image result",
+        "Image upload failed",
+        "Post result"
+      ],
+      "description": "Builds the post, picks text, article, single image or multi-image, publishes to LinkedIn. Used by instant posts and the queue."
+    },
+    {
+      "id": "accbdd55-a4db-4d5f-8aa3-352ad5f13ac4",
+      "name": "Log published post",
+      "nodeNames": [
+        "From queue?",
+        "Log: update queued row",
+        "Log: insert post",
+        "Has image? (post)",
+        "Notify: post (photo)",
+        "Notify: post",
+        "Result: post"
+      ],
+      "description": "Saves the result to linkedin_posts: updates the queued row or inserts a new one."
+    },
+    {
+      "id": "85d55741-4443-4373-9472-d68851c97566",
+      "name": "Queue a post",
+      "nodeNames": [
+        "Log: add to queue",
+        "Has image? (queued)",
+        "Notify: queued (photo)",
+        "Notify: queued",
+        "Result: queued"
+      ],
+      "description": "Adds a post with a scheduled time to linkedin_posts as 'queued'."
+    },
+    {
+      "id": "83db6d08-86ba-4b60-81f3-1020885d1191",
+      "name": "Edit a post",
+      "nodeNames": [
+        "LinkedIn: edit post",
+        "Edit result",
+        "Edit ok?",
+        "Log: save edited text",
+        "Notify: edited",
+        "Result: edit",
+        "Notify: edit failed",
+        "Result: edit failed"
+      ],
+      "description": "Changes a live post's text via LinkedIn API and updates the log."
+    },
+    {
+      "id": "09ca8ad0-a2bb-4763-9019-9e34d7900968",
+      "name": "Delete a post",
+      "nodeNames": [
+        "LinkedIn: delete post",
+        "Delete result",
+        "Delete ok?",
+        "Log: mark deleted",
+        "Has image? (deleted)",
+        "Notify: deleted (photo)",
+        "Notify: deleted",
+        "Result: delete",
+        "Notify: delete failed",
+        "Result: delete failed"
+      ],
+      "description": "Deletes a live post via LinkedIn API and marks it deleted in the log."
+    },
+    {
+      "id": "c4036a66-3088-44b3-bb70-c68799ab42fc",
+      "name": "List recent posts",
+      "nodeNames": [
+        "Log: recent posts",
+        "Result: list"
+      ],
+      "description": "Returns the last 20 rows of linkedin_posts."
+    },
+    {
+      "id": "a17713cd-6bda-4076-ba64-25ee775badb9",
+      "name": "Cancel a queued post",
+      "nodeNames": [
+        "Log: cancel queued",
+        "Has image? (cancelled)",
+        "Notify: cancelled (photo)",
+        "Notify: cancelled",
+        "Result: cancel"
+      ],
+      "description": "Marks a queued row as cancelled so it never publishes."
+    },
+    {
+      "id": "2ef4df62-0d22-41e0-a846-bfa1e64051b9",
+      "name": "Daily queue summary",
+      "nodeNames": [
+        "Get queued posts",
+        "Collect queue",
+        "Notify: daily queue"
+      ],
+      "description": "Each morning at 8:00, sends the list of queued posts to Telegram. Silent when the queue is empty."
+    },
+    {
+      "id": "06cd8cde-ab38-4711-8052-cf97172a83e2",
+      "name": "Upload media",
+      "nodeNames": [
+        "Prepare upload",
+        "Base64 to file",
+        "Save to disk",
+        "Result: upload"
+      ],
+      "description": "Saves an image Claude sends (base64) to the server and returns a public link for posts."
+    },
+    {
+      "id": "91bd348b-c876-417b-b336-9961a151412c",
+      "name": "Serve media",
+      "nodeNames": [
+        "Read media file",
+        "File still has content?",
+        "Send image",
+        "Not found"
+      ],
+      "description": "Public GET /webhook/media?f=<file> returns a saved image, or 404."
+    },
+    {
+      "id": "eb95b823-c741-4dc4-8952-e0a5d6520be6",
+      "name": "Media cleanup",
+      "nodeNames": [
+        "Get all logged posts",
+        "Older than 7 days, has media?",
+        "Media files of post",
+        "One item per file",
+        "Empty content",
+        "Make empty file",
+        "Overwrite image with empty file",
+        "Log: mark media cleaned"
+      ],
+      "description": "Nightly at 3:00: empties hosted images of posts that went live (or ended) 7+ days ago. Queued posts are never touched."
+    }
+  ]
+}
