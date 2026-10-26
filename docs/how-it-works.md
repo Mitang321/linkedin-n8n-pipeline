@@ -1,10 +1,11 @@
 # How it works
 
-The whole pipeline is one n8n workflow, `workflow/linkedin-pipeline.json`, with 82 nodes. It has four entry points:
+The whole pipeline is one n8n workflow, `workflow/linkedin-pipeline.json`, named "LinkedIn pipeline" and made of 133 nodes. It has seven entry points:
 
 - `Webhook from Claude`: `POST /webhook/claude-linkedin-post`, the API
 - `Media link`: `GET /webhook/media`, serves hosted images
-- `Every 15 minutes`, `Every morning 8:00`, `Every night 3:00`: schedules
+- `Telegram in`: button taps and messages from your Telegram chat
+- `Every 15 minutes`, `Every morning 8:00`, `Every morning 9:00`, `Every night 3:00`: schedules
 
 On the canvas the nodes are arranged in labelled groups. This page goes through them in the order a request flows.
 
@@ -18,19 +19,26 @@ flowchart LR
     R -->|list| L[List recent posts]
     R -->|cancel| C[Cancel a queued post]
     R -->|upload| U[Upload media]
+    R -->|ideas, idea_add, idea_update| I[Ideas]
     R -->|anything else| X[Result: rejected]
 
     S15[Every 15 minutes] --> N[Get next due post] --> P
     P --> LOG[Log published post]
 
+    TG[Telegram in] --> RT{Route Telegram}
+    RT -->|approve / reject| AP[Approve or reject]
+    RT -->|idea, /ideas| I
+    RT -->|/status, /reconnected, help| ST[Status and settings]
+
     S8[Every morning 8:00] --> DQ[Daily queue summary]
+    S9[Every morning 9:00] --> LR[LinkedIn login reminder]
     S3[Every night 3:00] --> MC[Media cleanup]
     M[Media link GET] --> SM[Serve media]
 
-    LOG & Q & E & D & C --> T((Telegram))
-    DQ --> T
-    LOG & Q & E & D & C --> DT[(linkedin_posts)]
-    DT --> L
+    LOG & Q & E & D & C & DQ & LR --> T((Telegram))
+    LOG & Q & E & D & C & AP --> DT[(linkedin_posts)]
+    I --> IT[(ideas)]
+    ST & LR --> PS[(pipeline_settings)]
     U --> F[("/home/node/.n8n-files")]
     F --> SM
     MC --> F
@@ -40,7 +48,7 @@ flowchart LR
 
 `Webhook from Claude` checks the `X-Claude-Key` header (n8n Header Auth) and is set to respond with the last node's output, so the caller waits for the whole path to finish and gets its result.
 
-`Route by action` is a Switch with seven rules and a fallback. Each rule checks `action`, the fields that action needs, and its confirm word. The rules are listed in [api.md](api.md#how-a-request-is-routed). Anything that doesn't match goes to `Result: rejected`, which returns `{status: "rejected", reason: ...}` and does nothing else.
+`Route by action` is a Switch with ten rules and a fallback. Each rule checks `action`, the fields that action needs, and its confirm word. The rules are listed in [api.md](api.md#how-a-request-is-routed). Anything that doesn't match goes to `Result: rejected`, which returns `{status: "rejected", reason: ...}` and does nothing else.
 
 ## Publish (text / article / image / multi-image)
 
@@ -69,20 +77,27 @@ The REST calls send `LinkedIn-Version: 202608` and `X-Restli-Protocol-Version: 2
 ## Log published post
 
 - `From queue?` checks `row_id`. If the post came from the queue, `Log: update queued row` updates that row (`status`, `urn`, `post_url`, `posted_at`, `error`). Otherwise `Log: insert post` adds a new row.
-- `Has image? (post)` picks the Telegram message: `Notify: post (photo)` sends the first image with a caption, `Notify: post` sends text. If the photo can't be sent (Telegram couldn't fetch the image, for example), its error output falls through to the text message.
+- `Has image? (post)` and `Several images? (post)` pick how images are sent to Telegram:
+  - several images: `Images to send (post)` and `One photo per image (post)` make one item per image (first 10), and `Notify: post (each photo)` sends each one silently
+  - one image: `Notify: post (photo)` sends it
+  - no image: straight to the text message
+- `Notify: post` sends the text message: posted or failed, the post type, the full text, and an "Open on LinkedIn" button when it worked. It runs once, after the photos.
 - `Result: post` returns `{status, urn, post_url, error, log_row_id}`.
 
 ## Queue a post
 
-- `Log: add to queue` inserts a row with `status: "queued"`, `scheduled_at` and the post fields. It works out `media_type` the same way `Prepare post` does.
-- `Has image? (queued)` then `Notify: queued (photo)` or `Notify: queued` tells you when it will go out and its queue number.
-- `Result: queued` returns `{status: "queued", row_id, scheduled_at}`.
+- `Log: add to queue` inserts a row with the post fields and `scheduled_at`. Its status is `pending_approval` if the body has `"approval": "telegram"` (any case), otherwise `queued`. It works out `media_type` the same way `Prepare post` does.
+- `Has image? (queued)`, `Several images? (queued)` and the matching photo nodes send the images the same way as for a published post.
+- `Notify: queued` sends the text: "Queued" or "Waiting for your approval", when it goes out, the type, the queue number and the full text. For approval posts it adds the **✅ Approve** / **✖ Reject** buttons, with callback data `approve:<row_id>` and `reject:<row_id>`.
+- `Result: queued` returns `{status, row_id, scheduled_at}`, where `status` is `pending_approval` or `queued`.
 
 Nothing is sent to LinkedIn at this point.
 
 ## Every 15 minutes
 
-`Every 15 minutes` triggers `Get next due post`, which reads the `linkedin_posts` table for rows with `status = queued` and `scheduled_at <= now`, sorted by `scheduled_at` ascending, limit 1. If it finds one, the row goes into `Prepare post` and follows the same Publish and Log path as an instant post. If nothing is due, the run ends there.
+`Every 15 minutes` fires on the clock at :00, :15, :30 and :45 and triggers `Get next due post`, which reads `linkedin_posts` for rows with `status = queued` and `scheduled_at <= now`, sorted by `scheduled_at` ascending, limit 1. If it finds one, the row goes into `Prepare post` and follows the same Publish and Log path as an instant post. If nothing is due, the run ends there.
+
+Rows with `pending_approval` are never picked up.
 
 ## Edit a post
 
@@ -97,7 +112,7 @@ Nothing is sent to LinkedIn at this point.
 - `LinkedIn: delete post` sends `DELETE /rest/posts/{urn}`.
 - `Delete result`: 204 is `deleted`, anything else `failed`.
 - `Delete ok?`
-  - yes: `Log: mark deleted` sets `status: "deleted"`, then `Has image? (deleted)` picks `Notify: deleted (photo)` or `Notify: deleted`, then `Result: delete`
+  - yes: `Log: mark deleted` sets `status: "deleted"`, then `Has image? (deleted)` picks `Notify: deleted (photo)` (first image only) or `Notify: deleted`, then `Result: delete`
   - no: `Notify: delete failed`, `Result: delete failed`
 
 ## List recent posts
@@ -106,14 +121,22 @@ Nothing is sent to LinkedIn at this point.
 
 ## Cancel a queued post
 
-`Log: cancel queued` updates the row with that `id` only if its status is `queued`, setting it to `cancelled`. If no row matched, the output is empty and `Result: cancel` returns `not found or not queued`. The Telegram message says which of the two happened.
+`Log: cancel queued` updates the row with that `id` only if its status is `queued`, setting it to `cancelled`. If no row matched, the output is empty and `Result: cancel` returns `not found or not queued`. The Telegram message (first image only, if there is one) says which of the two happened.
+
+## Ideas (webhook)
+
+- `ideas`: `Ideas: open (webhook)` reads up to 50 rows with `status = open`, newest first, and `Result: ideas` returns `{ideas: [...]}`.
+- `idea_add`: `Ideas: add (webhook)` inserts `{text, status: "open", source: "claude"}` and `Result: idea saved` returns `{status: "saved", idea_id}`.
+- `idea_update`: `Ideas: find by id` reads the row, `Ideas: set status` updates `status` and `used_in_row` (keeping the old `used_in_row` if none was sent), and `Result: idea updated` returns `updated` or `not found`.
+
+None of these send a Telegram message.
 
 ## Upload media
 
 - `Prepare upload` builds a safe file name (date, 6 random characters, sanitised original name), strips any `data:...;base64,` prefix and works out the MIME type.
 - `Base64 to file` turns the string into a binary file.
 - `Save to disk` writes it to `/home/node/.n8n-files/<file_name>`.
-- `Result: upload` returns `{status: "uploaded", file_name, url}`. The URL domain comes from the `YOUR_N8N_DOMAIN` placeholder you replaced before importing.
+- `Result: upload` returns `{status: "uploaded", file_name, url}`. The URL domain comes from the `YOUR_N8N_DOMAIN` placeholder.
 
 n8n 2.x only lets the file nodes touch `~/.n8n-files` by default, which is why that folder is used. Mount a volume there so files survive container restarts.
 
@@ -124,6 +147,52 @@ n8n 2.x only lets the file nodes touch `~/.n8n-files` by default, which is why t
 - `Read media file` reads the file. The name is stripped to `a-z A-Z 0-9 . _ -` with leading dots removed, so a request can't escape the folder. A missing file goes to `Not found`.
 - `File still has content?` checks the file size. A 0-byte file (one the cleanup emptied) also goes to `Not found`.
 - `Send image` returns the bytes with `Cache-Control: public, max-age=86400`. `Not found` returns 404 `not found`.
+
+## Telegram in
+
+`Telegram in` is a Telegram trigger for `message` and `callback_query` updates, restricted to your chat ID. `Route Telegram` is a Switch (not case-sensitive) with six rules and a fallback, checked in order:
+
+| Output | Matches |
+|---|---|
+| `approve` | button data starts with `approve:` |
+| `reject` | button data starts with `reject:` |
+| `ideas list` | message starts with `/ideas` |
+| `idea` | message starts with `idea` or `/idea` as a word (so `idea …`, `/idea …`, `idea: …`) |
+| `reconnected` | message starts with `/reconnected` |
+| `status` | message starts with `/status` |
+| Help | anything else |
+
+### Approve queued post
+
+`Approve: read button` takes the row id and query id from the button. `Log: approve pending` updates that row to `queued`, but only if it is still `pending_approval`. `Answer: approve` answers the button tap ("Approved" or "Already handled"), and `Was pending? (approve)` picks `Reply: approved` (`Approved #44 · goes out <time>`, or `within 15 minutes` if the time has passed) or `Reply: already handled (approve)`.
+
+### Reject queued post
+
+Same shape. `Log: reject pending` sets a `pending_approval` row to `cancelled`, and the bot replies `Rejected #44. It won't be posted.` or that it was already handled.
+
+### Save an idea (Telegram)
+
+`Idea text` strips the `idea` / `/idea` prefix and an optional `:` or dash. `Idea has text?` either saves it with `Ideas: add (Telegram)` (source `telegram`) and replies `Saved idea #12`, or replies with an example via `Reply: idea empty`.
+
+### List ideas (Telegram)
+
+`Ideas: latest open` reads the 10 newest open ideas, `Ideas list text` formats them (120 characters each), and `Reply: ideas list` sends them. With no open ideas it says `No open ideas yet.`
+
+### Reconnected (Telegram)
+
+`Settings: save reconnect time` upserts `linkedin_connected_at = now` in `pipeline_settings`. `Reply: reconnected` confirms and gives the date of the next reminder (50 days out).
+
+### Status (Telegram)
+
+`Status: posts` reads all `queued`, `pending_approval` and `posted` rows, and `Status: post counts` counts them (posted only in the last 7 days). `Status: open ideas` counts open ideas, `Status: LinkedIn login` reads `linkedin_connected_at`, and `Status: message` builds the reply sent by `Reply: status`.
+
+### Help (Telegram)
+
+`Reply: help` lists the commands.
+
+## LinkedIn login reminder
+
+`Every morning 9:00` reads `linkedin_connected_at` with `Settings: LinkedIn connected at`. `Login age` works out the days since then and the days left of 60. `Login expires soon?` passes from day 50, and `Notify: LinkedIn login` sends the warning with the reconnect steps. If the row is missing, the run stops quietly.
 
 ## Media cleanup
 
@@ -141,26 +210,32 @@ n8n 2.x only lets the file nodes touch `~/.n8n-files` by default, which is why t
 
 External image URLs are never touched. Neither are uploads that were never used in a logged post.
 
+Only `queued` rows are protected. A `pending_approval` row that has sat untouched for more than 7 days loses its hosted images, so approve or reject pending posts within a week, or use images hosted elsewhere for posts that will wait longer.
+
 ## Daily queue summary
 
-`Every morning 8:00` runs `Get queued posts` (all `queued` rows, soonest first), `Collect queue` and `Notify: daily queue`, which lists each post's time, queue number, type and the first 90 characters of its text. If the queue is empty, `Get queued posts` returns nothing and no message is sent.
+`Every morning 8:00` runs `Get queued posts` (all `queued` rows, soonest first), `Collect queue` and `Notify: daily queue`, which lists each post's time, queue number, type and the first 90 characters of its text. If the queue is empty, `Get queued posts` returns nothing and no message is sent. Posts waiting for approval are not included.
 
 ## Telegram messages
 
-All messages use HTML parse mode, with user text escaped.
+What each message looks like is in [telegram.md](telegram.md#notifications). In short:
 
-- If the post has an image, the message is a photo with a caption. Captions are limited, so the text is cut to about 700 characters.
-- Otherwise it's a text message with the full post text (up to 3,000 characters) in an expandable blockquote.
-- Posted, edited, edit-failed and delete-failed messages have an "Open on LinkedIn" button. A failed post has no URN, so its message shows the reason instead.
+- All messages use HTML parse mode, with user text escaped.
+- Posted and queued: images first (one photo per image, silent when there are several, at most 10), then the full text in an expandable quote with buttons.
+- Deleted and cancelled: the first image with the text as a caption (cut to about 700 characters), or a text message.
 - Times are shown in the workflow's timezone (Workflow settings → Timezone).
 
 ## Design choices
 
-**Confirm words.** The header key proves the request came from you. The confirm word proves the request meant to do this specific thing. A client (or a model) that builds the wrong action, or reuses a body, hits the fallback and nothing happens. `list` has no confirm word because it can't change anything.
+**Confirm words.** The header key proves the request came from you. The confirm word proves the request meant to do this specific thing. A client (or a model) that builds the wrong action, or reuses a body, hits the fallback and nothing happens. `list` and `ideas` have no confirm word because they can't change anything.
 
-**One post per 15 minutes.** The queue publishes at most one post per run. If several posts end up due at the same time, for example after the server was down, they go out 15 minutes apart instead of all at once. It also keeps each run short and easy to read in the executions list.
+**Approval is just a status.** A post waiting for approval is a normal row with status `pending_approval`. The queue only looks at `queued`, so approving is one field change and nothing else in the publish path had to change. Both buttons only act on rows that are still pending, so a double tap or an old message can't publish or cancel something twice.
 
-**Telegram never blocks posting.** Every Telegram node continues on error. If Telegram is down or the chat ID is wrong, the post is still published, logged, and the caller still gets its result. The photo nodes use a separate error output so a failed photo falls back to a plain text message.
+**One post per 15 minutes.** The queue publishes at most one post per run. If several posts end up due at the same time, for example after the server was down, they go out 15 minutes apart instead of all at once.
+
+**Telegram never blocks posting.** Every Telegram node continues on error. If Telegram is down or the chat ID is wrong, the post is still published and logged, and the caller still gets its result. The single-photo nodes use a separate error output so a failed photo falls through to the text message.
+
+**Why /reconnected exists.** n8n doesn't expose when an OAuth credential was last connected, so the workflow keeps its own date in `pipeline_settings`. You tell it when you reconnect.
 
 **Files are emptied, not deleted.** The Read/Write Files node can read and write but not delete, and the Execute Command node is disabled by default in n8n 2.x. Overwriting with a 0-byte file stays inside n8n's defaults, frees the space, and makes the media link return 404. The empty files are left behind; remove them by hand if you care about the file count.
 
@@ -168,4 +243,4 @@ All messages use HTML parse mode, with user text escaped.
 
 **Images are downloaded by n8n.** LinkedIn's API needs the image bytes, not a link. n8n downloads each image and uploads it. The image link only has to be reachable from your server, and the public media link exists mainly so Claude can hand over files it created.
 
-**One table for everything.** Instant posts, queued posts, edits, deletes and cancels all live in `linkedin_posts`. The queue is just rows with `status = queued`. See [data-table.md](data-table.md).
+**Three small tables.** Posts, queue and log share `linkedin_posts`; the queue is just rows with `status = queued`. Ideas and settings have their own tables. See [data-table.md](data-table.md).

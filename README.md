@@ -1,122 +1,155 @@
 # linkedin-n8n-pipeline
 
-Draft LinkedIn posts with Claude, approve them, and let your own n8n server publish them through LinkedIn's official API.
+Write LinkedIn posts with Claude, approve them, and let your own n8n server publish them through LinkedIn's official API.
 
 ![Cover](assets/cover-receipt.png)
 
-I write my LinkedIn posts with Claude. When I approve a draft, Claude calls my own n8n server (over n8n's MCP server, or a plain webhook) and n8n publishes it. Everything runs on an Oracle Cloud Always Free ARM VM with Coolify, so hosting costs €0/month.
-
-It is one n8n workflow: 82 nodes, 7 actions. Before going live I ran 31 test paths with simulated data.
+It's one n8n workflow. Claude (or curl, or anything that can send JSON) calls a webhook, n8n posts to LinkedIn, logs the result in n8n Data Tables and tells you on Telegram. I run it on an Oracle Cloud Always Free VM, so hosting costs nothing. Each release is tested with simulated data before it goes out.
 
 ## What it does
 
-- Publishes text, single-image, multi-image (2 to 20 images) and article posts
-- Queues posts for a set time and publishes them when they're due
-- Edits a live post without losing its likes and comments
-- Deletes posts and cancels queued ones
-- Hosts images on your own server and gives you a public link to use in a post
-- Logs every action in an n8n Data Table
-- Sends Telegram notifications for everything that happens, plus a daily queue summary
+- Publishes text, single-image, multi-image (2 to 20) and article posts
+- Queues posts for a set time, checked every 15 minutes
+- Can hold a queued post until you tap **✅ Approve** in Telegram
+- Edits a live post's text without losing its likes and comments, and deletes posts
+- Hosts images on your server and gives you a public link to use in a post
+- Keeps a list of post ideas you can add to from Telegram or from Claude
+- Sends a Telegram message for everything that happens, a daily queue summary, and a reminder before your LinkedIn login expires
 - Cleans up hosted images a week after they're no longer needed
+
+## Get started
+
+Pick the path that fits.
+
+| Path | Time | Start here |
+|---|---|---|
+| I already run n8n | about 10 minutes | [below](#i-already-run-n8n) |
+| Starting from zero | an afternoon | [below](#starting-from-zero) |
+| Let Claude set it up | depends on you | [docs/setup-with-claude.md](docs/setup-with-claude.md) |
+
+### Three things only you can do
+
+Whichever path you take, these need a human in a browser:
+
+1. **Create a LinkedIn developer app** at [developer.linkedin.com](https://developer.linkedin.com). LinkedIn requires a Company Page to create one (a bare page with just a name is enough). Add the products **Share on LinkedIn** and **Sign In with LinkedIn using OpenID Connect**, and add `https://n8n.example.com/rest/oauth2-credential/callback` (your domain) as a redirect URL.
+2. **Click Connect** on the LinkedIn credential in n8n and approve in the LinkedIn window.
+3. **Create a Telegram bot** with [@BotFather](https://t.me/BotFather) and send it one message. This is optional: run the setup with `--no-telegram` to skip Telegram entirely.
+
+### I already run n8n
+
+You need n8n 2.x with Data Tables (2.13+ if you want Claude to connect over MCP), reachable over HTTPS.
+
+1. In n8n, go to **Settings → n8n API** and create an API key.
+2. Copy the config file and fill in what you have: the n8n URL and API key, the LinkedIn app's Client ID and Secret, and the Telegram bot token. The comments in the file explain each value.
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Run the setup script. It asks for anything missing, creates the three data tables and the credentials, fills in the placeholders, imports the workflow and publishes it. It's safe to run again.
+
+   ```bash
+   python3 scripts/setup.py
+   ```
+
+4. Open the LinkedIn credential in n8n and click **Connect**.
+5. Find your LinkedIn person ID: open any `LinkedIn:` node in the workflow and pick yourself in the **Person** dropdown ([more detail](docs/walkthrough.md#part-9-your-linkedin-person-id)). Then:
+
+   ```bash
+   python3 scripts/setup.py person <ID>
+   ```
+
+6. Check everything:
+
+   ```bash
+   python3 scripts/doctor.py
+   ```
+
+Then try the [example scripts](examples/), starting with `./list.sh`.
+
+### Starting from zero
+
+1. Get a server. Oracle Cloud's Always Free ARM VM works well ([walkthrough, part 1](docs/walkthrough.md#part-1-oracle-cloud-vm)); any small VPS with Docker does too.
+2. Point a domain at it and run n8n with HTTPS, either with the Docker Compose setup in [docker/](docker/README.md) or with [Coolify](docs/walkthrough.md#part-2-coolify-and-a-domain).
+3. Continue with [I already run n8n](#i-already-run-n8n).
+
+If you'd rather not use the script, [docs/walkthrough.md](docs/walkthrough.md) does every step by hand.
+
+## Using it
+
+Everything goes to `POST https://n8n.example.com/webhook/claude-linkedin-post` with an `X-Claude-Key` header.
+
+| Action | Needs | Confirm word |
+|---|---|---|
+| `post` | `text`, optional images or article link | `POST` |
+| `queue` | `text`, `scheduled_at`, optional `"approval": "telegram"` | `QUEUE` |
+| `edit` | `urn`, `text` | `EDIT` |
+| `delete` | `urn` | `DELETE` |
+| `cancel` | `row_id` of a queued post | `CANCEL` |
+| `upload` | `filename`, `data_base64` | `UPLOAD` |
+| `list` | nothing | none |
+| `ideas` | nothing | none |
+| `idea_add` | `text` | `IDEA` |
+| `idea_update` | `idea_id`, `status` (`used`, `dropped`, `open`) | `IDEA` |
+
+In Telegram, the bot understands:
+
+| Message | What it does |
+|---|---|
+| `idea your thought` | Saves an idea |
+| `/ideas` | Shows the last 10 open ideas |
+| `/status` | Queue, approvals, posts this week, open ideas, LinkedIn login age |
+| `/reconnected` | Resets the login reminder after you reconnect LinkedIn |
+
+More: [API reference](docs/api.md) · [Telegram](docs/telegram.md) · [example scripts](examples/) · [connect Claude over MCP](docs/claude-mcp.md)
 
 ## How it works
 
 ![How it works](assets/how-it-works.png)
 
-Claude sends a JSON request to one webhook. The workflow checks the `X-Claude-Key` header and a confirm word, routes the request by `action`, calls LinkedIn, logs the result and pings you on Telegram.
+The webhook checks the key and the confirm word, routes by `action`, calls LinkedIn, logs the result and tells you on Telegram. Schedules handle the queue (every 15 minutes), the morning summary (08:00), the login reminder (09:00) and image cleanup (03:00). A Telegram trigger handles the approval buttons and bot commands.
 
-Three schedules run alongside it:
-
-- **Every 15 minutes:** publishes the oldest due queued post (one per run).
-- **08:00 daily:** sends a Telegram summary of the queue. Stays quiet if the queue is empty.
-- **03:00 nightly:** empties the hosted images of posts that went live (or were deleted, cancelled or failed) 7 or more days ago. Queued posts are never touched.
-
-Text, single-image and article posts go through n8n's LinkedIn node. Multi-image posts, edits and deletes use LinkedIn's REST API (`/rest/images`, `/rest/posts`) through HTTP Request nodes, with the same LinkedIn credential.
-
-![Telegram notifications](assets/telegram-notifications.png)
-
-## The 7 actions
-
-All actions go to `POST https://YOUR_N8N_DOMAIN/webhook/claude-linkedin-post`.
-
-| Action | Required fields | Confirm word | What happens |
-|---|---|---|---|
-| `post` | `text` (optional `image_url`, `image_urls`, or `article_url` + `article_title` + `article_description`) | `POST` | Publishes now |
-| `queue` | same as `post` + `scheduled_at` (ISO 8601 with offset) | `QUEUE` | Adds to the queue |
-| `edit` | `urn`, `text` | `EDIT` | Replaces the post text, keeps likes and comments |
-| `delete` | `urn` | `DELETE` | Deletes the post |
-| `list` | none | none | Returns the last 20 log rows |
-| `cancel` | `row_id` of a queued post | `CANCEL` | Removes it from the queue |
-| `upload` | `filename`, `data_base64` | `UPLOAD` | Saves the image and returns `https://YOUR_N8N_DOMAIN/webhook/media?f=<file>` |
-
-Anything else is rejected and nothing happens. Full request and response details are in [docs/api.md](docs/api.md).
-
-## Requirements
-
-- An Oracle Cloud Always Free account (or any Linux VM you control)
-- A domain or subdomain you can point at the VM
-- Coolify to deploy n8n
-- n8n 2.x with Data Tables. Use 2.13+ if you want Claude to connect over MCP
-- A LinkedIn developer app (needs a LinkedIn Company Page)
-- A Telegram bot
-- Claude, if you want it to drive the pipeline
-
-I run it on 2 OCPU / 12 GB. The free tier allows up to 4 OCPU / 24 GB.
-
-## Quick start
-
-The full version with commands and checkpoints is in [docs/walkthrough.md](docs/walkthrough.md).
-
-1. Create an Ampere A1 Ubuntu VM on Oracle Cloud and open ports 80 and 443. ([Part 1](docs/walkthrough.md#part-1-oracle-cloud-vm))
-2. Install Coolify and point a domain at the VM. ([Part 2](docs/walkthrough.md#part-2-coolify-and-a-domain))
-3. Deploy the plain N8N service in Coolify and add a volume for media files. ([Parts 3 and 4](docs/walkthrough.md#part-3-deploy-n8n))
-4. Create a LinkedIn app and a Telegram bot. ([Parts 5 and 6](docs/walkthrough.md#part-5-linkedin-developer-app))
-5. In n8n, add the three credentials and create the `linkedin_posts` data table. ([Parts 7 and 8](docs/walkthrough.md#part-7-n8n-credentials))
-6. Replace the placeholders in `workflow/linkedin-pipeline.json`, import it, pick your credentials and set your timezone. ([Part 10](docs/walkthrough.md#part-10-import-the-workflow))
-7. Send a request that should be rejected, then a `list` call. ([Part 11](docs/walkthrough.md#part-11-test-it-safely))
-8. Optional: connect Claude over MCP. ([docs/claude-mcp.md](docs/claude-mcp.md))
+Node by node: [docs/how-it-works.md](docs/how-it-works.md).
 
 ## Safety notes
 
 - **Two locks on every write.** Requests need the `X-Claude-Key` header, and every action that changes something needs its own confirm word. A missing or wrong word means nothing happens.
 - **Official API only.** Posts go through LinkedIn's API with your own OAuth app. No scraping, no browser automation.
-- **Publishing only.** The workflow does not send DMs, like posts or write comments. It doesn't automate engagement.
-- **Tokens expire.** LinkedIn access tokens last 60 days. When posts start failing with auth errors, reconnect the LinkedIn credential in n8n.
-- **API version.** The HTTP Request nodes send `LinkedIn-Version: 202608`. LinkedIn supports each version for about a year, so bump it later.
-- **Timezone.** The workflow is set to Europe/Paris. Change it to yours in the workflow settings.
+- **Publishing only.** The workflow doesn't send DMs, like posts or write comments.
+- **Your chat only.** The Telegram trigger only accepts messages from the chat ID you configured.
+- **The LinkedIn login lasts 60 days.** From day 50 the bot reminds you every morning. Reconnect the credential in n8n, then send `/reconnected`.
 
 ## Project layout
 
 ```
 .
 ├── README.md
+├── CHANGELOG.md
 ├── LICENSE
-├── assets/
-│   ├── cover-receipt.png
-│   ├── how-it-works.png
-│   └── telegram-notifications.png
+├── .env.example            settings for scripts/setup.py
+├── assets/                 images used in the docs
+├── docker/                 Docker Compose + Caddy for running n8n
 ├── docs/
-│   ├── walkthrough.md       setup from zero
-│   ├── claude-mcp.md        connect Claude to n8n
-│   ├── api.md               every action, request and response
-│   ├── how-it-works.md      node by node
-│   ├── data-table.md        the linkedin_posts table
-│   └── troubleshooting.md
-├── examples/                curl scripts, one per action
+├── examples/               curl scripts, one per action
+├── scripts/
+│   ├── setup.py            creates tables and credentials, imports the workflow
+│   └── doctor.py           checks the setup and says what's wrong
 └── workflow/
     ├── linkedin-pipeline.json
-    └── data-table-schema.json
+    └── data-tables.json    the three tables and their columns
 ```
 
 ## Docs
 
-- [Walkthrough](docs/walkthrough.md)
-- [Connect Claude over MCP](docs/claude-mcp.md)
+- [Set up with Claude](docs/setup-with-claude.md)
+- [Manual setup, step by step](docs/walkthrough.md)
 - [API reference](docs/api.md)
+- [Telegram: notifications, approval, commands](docs/telegram.md)
+- [Connect Claude over MCP](docs/claude-mcp.md)
 - [How it works, node by node](docs/how-it-works.md)
-- [Data table](docs/data-table.md)
+- [Data tables](docs/data-table.md)
 - [Troubleshooting](docs/troubleshooting.md)
-- [Example curl scripts](examples/)
+- [Changelog](CHANGELOG.md)
 
 ## License
 
@@ -124,4 +157,4 @@ MIT. See [LICENSE](LICENSE).
 
 ---
 
-Built by Mitang Hindocha. [LinkedIn](https://www.linkedin.com/in/mitang-hindocha) · [mitangs.tech](https://mitangs.tech)
+Built by Mitang Hindocha · [LinkedIn](https://www.linkedin.com/in/mitang-hindocha) · [mitangs.tech](https://mitangs.tech)

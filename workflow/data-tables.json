@@ -1,0 +1,107 @@
+[
+  {
+    "name": "linkedin_posts",
+    "columns": [
+      {
+        "name": "text",
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "type": "string"
+      },
+      {
+        "name": "scheduled_at",
+        "type": "date"
+      },
+      {
+        "name": "media_type",
+        "type": "string"
+      },
+      {
+        "name": "image_url",
+        "type": "string"
+      },
+      {
+        "name": "image_urls",
+        "type": "string"
+      },
+      {
+        "name": "article_url",
+        "type": "string"
+      },
+      {
+        "name": "article_title",
+        "type": "string"
+      },
+      {
+        "name": "article_description",
+        "type": "string"
+      },
+      {
+        "name": "urn",
+        "type": "string"
+      },
+      {
+        "name": "post_url",
+        "type": "string"
+      },
+      {
+        "name": "posted_at",
+        "type": "date"
+      },
+      {
+        "name": "edited_at",
+        "type": "date"
+      },
+      {
+        "name": "error",
+        "type": "string"
+      },
+      {
+        "name": "media_cleaned",
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "name": "ideas",
+    "columns": [
+      {
+        "name": "text",
+        "type": "string"
+      },
+      {
+        "name": "status",
+        "type": "string"
+      },
+      {
+        "name": "source",
+        "type": "string"
+      },
+      {
+        "name": "used_in_row",
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "pipeline_settings",
+    "columns": [
+      {
+        "name": "key",
+        "type": "string"
+      },
+      {
+        "name": "value",
+        "type": "string"
+      }
+    ],
+    "seed_rows": [
+      {
+        "key": "linkedin_connected_at",
+        "value": "<ISO timestamp when you connected LinkedIn>"
+      }
+    ]
+  }
+]

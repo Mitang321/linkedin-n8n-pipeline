@@ -1,0 +1,61 @@
+# n8n + Caddy (automatic HTTPS) for the LinkedIn pipeline.
+# Copy .env.example to .env, fill it in, then: docker compose up -d
+# See README.md in this folder.
+
+services:
+  # Runs once before n8n starts. The image upload feature writes to
+  # /home/node/.n8n-files, and n8n runs as user 1000. A fresh named volume
+  # is owned by root, which causes "Forbidden by access permissions" on upload.
+  init-files:
+    image: busybox:1.36
+    command: ["sh", "-c", "chown -R 1000:1000 /files"]
+    volumes:
+      - n8n-files:/files
+    restart: "no"
+
+  n8n:
+    # Pin a version for real use, for example n8nio/n8n:2.13.0 or newer.
+    # 2.13+ is needed for the MCP build/test tools used in docs/setup-with-claude.md.
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    depends_on:
+      init-files:
+        condition: service_completed_successfully
+    environment:
+      - N8N_HOST=${N8N_DOMAIN}
+      - N8N_PROTOCOL=https
+      - N8N_PORT=5678
+      - WEBHOOK_URL=https://${N8N_DOMAIN}/
+      - GENERIC_TIMEZONE=${TIMEZONE}
+      - TZ=${TIMEZONE}
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168
+      - N8N_RUNNERS_ENABLED=true
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - n8n-files:/home/node/.n8n-files
+    # No ports here on purpose. n8n is only reachable through Caddy.
+    expose:
+      - "5678"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - n8n
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      - N8N_DOMAIN=${N8N_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  n8n-data:
+  n8n-files:
+  caddy-data:
+  caddy-config:

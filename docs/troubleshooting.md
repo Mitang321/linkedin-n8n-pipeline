@@ -1,7 +1,11 @@
 # Troubleshooting
 
-Start with **Executions** in n8n. Every webhook call and schedule run is there, and clicking a run shows which node failed and with what input. Most problems below show up clearly in that view.
+Two places to start:
 
+- `python3 scripts/doctor.py` checks your setup and says what's wrong.
+- **Executions** in n8n. Every webhook call, Telegram update and schedule run is there, and clicking a run shows which node failed and with what input.
+
+- [setup.py stops with an error](#setuppy-stops-with-an-error)
 - [LinkedIn OAuth: redirect_uri mismatch](#linkedin-oauth-redirect_uri-mismatch)
 - [Webhook returns 404 "not registered"](#webhook-returns-404-not-registered)
 - [Webhook returns 403 "Authorization data is wrong!"](#webhook-returns-403-authorization-data-is-wrong)
@@ -14,11 +18,26 @@ Start with **Executions** in n8n. Every webhook call and schedule run is there, 
 - [Telegram stays silent](#telegram-stays-silent)
 - [Telegram sends text instead of the photo](#telegram-sends-text-instead-of-the-photo)
 - [Telegram shows the wrong time](#telegram-shows-the-wrong-time)
+- [Approve / Reject buttons do nothing](#approve--reject-buttons-do-nothing)
+- [The bot doesn't answer commands](#the-bot-doesnt-answer-commands)
+- [/status says the LinkedIn login is unknown](#status-says-the-linkedin-login-is-unknown)
+- [No login reminder](#no-login-reminder)
 - [A queued post didn't go out](#a-queued-post-didnt-go-out)
-- [Queue request returns an error instead of "queued"](#queue-request-returns-an-error-instead-of-queued)
+- [An approved post didn't go out](#an-approved-post-didnt-go-out)
+- [Cancel says "not found or not queued"](#cancel-says-not-found-or-not-queued)
 - [Media link returns 404 after a week](#media-link-returns-404-after-a-week)
 - [Edit or delete fails](#edit-or-delete-fails)
 - [Data table errors after import](#data-table-errors-after-import)
+
+## setup.py stops with an error
+
+Run `python3 scripts/doctor.py`. It checks the setup and tells you what's missing, so you can fix that and run `setup.py` again. The usual causes:
+
+- The n8n URL or API key in `.env` is wrong, or n8n isn't reachable over HTTPS yet.
+- The n8n API is turned off, or the key was created on another instance.
+- n8n is older than 2.x and has no Data Tables.
+
+If you want to see what the script does, [walkthrough.md](walkthrough.md) has every step by hand.
 
 ## LinkedIn OAuth: redirect_uri mismatch
 
@@ -58,10 +77,11 @@ The `X-Claude-Key` header is missing or its value doesn't match the Header Auth 
 The body didn't match any rule in `Route by action`. Check:
 
 - The `Content-Type: application/json` header is set. Without it n8n doesn't parse the body as JSON.
-- The confirm word is uppercase and matches the action: `POST`, `QUEUE`, `EDIT`, `DELETE`, `CANCEL`, `UPLOAD`.
+- The confirm word is uppercase and matches the action: `POST`, `QUEUE`, `EDIT`, `DELETE`, `CANCEL`, `UPLOAD`, or `IDEA` for `idea_add` and `idea_update`.
 - `action` is lowercase.
 - `urn` starts with `urn:li:`.
-- Required fields are present and not empty. `queue` needs `scheduled_at`, `upload` needs both `filename` and `data_base64`.
+- Required fields are present and not empty. `queue` needs `scheduled_at` as a valid ISO 8601 date (like `2026-10-27T08:30:00+01:00`), `upload` needs both `filename` and `data_base64`, `idea_update` needs a numeric `idea_id` and a `status` of `used`, `dropped` or `open`.
+- `image_urls` is a real JSON array of at most 20, not a string.
 
 The full rule list is in [api.md](api.md#how-a-request-is-routed).
 
@@ -90,7 +110,9 @@ LinkedIn access tokens last 60 days. When the token expires:
 - Telegram shows **Post FAILED** with the reason
 - queued posts go out as `failed` too
 
-Open the LinkedIn credential in n8n and click **Reconnect** (or sign in again). Then retry anything that failed; see [Retrying a failed post](data-table.md#retrying-a-failed-post). Put a reminder in your calendar for 55 days after each reconnect.
+Open the LinkedIn credential in n8n and click **Reconnect** (or sign in again), then send `/reconnected` to your bot so the reminder starts counting again. Retry anything that failed; see [Retrying a failed post](data-table.md#retrying-a-failed-post).
+
+The bot warns you every morning from day 50, as long as `pipeline_settings` has a valid `linkedin_connected_at` ([No login reminder](#no-login-reminder)).
 
 ## Multi-image, edit or delete fail with a version error
 
@@ -121,7 +143,8 @@ For multi-image posts, all images go through the same check, and LinkedIn accept
 
 - Message your bot first. Telegram bots can't start a conversation, so send `/start` to the bot from your account.
 - Check the chat ID. It's your numeric user ID (or a group ID, which starts with `-`), not the bot's username. Send a message to the bot, then open `https://api.telegram.org/bot<token>/getUpdates` and read `message.chat.id`.
-- Make sure every `YOUR_TELEGRAM_CHAT_ID` placeholder was replaced. There are many Telegram nodes.
+- Make sure every `YOUR_TELEGRAM_CHAT_ID` placeholder was replaced. There are 27 Telegram nodes plus the `Telegram in` trigger.
+- If you ran `setup.py --no-telegram`, the Telegram nodes are disabled on purpose.
 - Check the Telegram credential's bot token.
 
 Telegram nodes continue on error, so a broken Telegram setup never stops a post. Look at the Telegram node output in the execution to see the actual error.
@@ -130,32 +153,78 @@ The morning summary is silent on purpose when the queue is empty.
 
 ## Telegram sends text instead of the photo
 
-The photo message failed and the workflow fell back to text. Telegram fetches the photo itself from the URL, so the image must be publicly reachable from the internet, not just from your server. Hosted media links work as long as the file hasn't been cleaned up yet.
+The photo message failed and the text went out on its own. Telegram fetches the photo itself from the URL, so the image must be publicly reachable from the internet, not just from your server. Hosted media links work as long as the file hasn't been cleaned up yet.
 
 ## Telegram shows the wrong time
 
-Message times and the schedules (every 15 minutes, 08:00, 03:00) all follow the workflow timezone. The export is set to `Europe/Paris`. Change it in the workflow's ⋯ → Settings → Timezone, save, and publish again.
+Message times and the schedules (every 15 minutes, 08:00, 09:00, 03:00) all follow the workflow timezone. The export is set to `Europe/Paris`. Change it in the workflow's ⋯ → Settings → Timezone, save, and publish again.
+
+## Approve / Reject buttons do nothing
+
+Tapping a button sends an update to the `Telegram in` trigger. If nothing comes back:
+
+1. **The workflow isn't published.** The trigger only exists while the workflow is published. Publish it, then tap again.
+2. **Telegram has no webhook for the bot.** n8n registers it when the workflow is published, and it needs a public HTTPS URL. Check with `https://api.telegram.org/bot<TOKEN>/getWebhookInfo`: `url` should point at your n8n domain. If it's empty or points elsewhere, unpublish and publish the workflow again. Make sure `WEBHOOK_URL` on the n8n service is your public `https://` address.
+3. **The bot is used somewhere else.** A bot has one webhook. If another n8n workflow (or another tool) uses the same bot token with a trigger, the last one to register wins. Use a separate bot for this pipeline.
+4. **Chat ID mismatch.** `Telegram in` only accepts updates from the chat ID in its **Restrict to Chat IDs** field. If you're tapping in a different chat (say, a group, while the field has your user ID), the update is dropped. Use the same ID everywhere.
+
+Look in **Executions** for runs that start at `Telegram in`. No runs at all means points 1 to 3; runs that stop early mean something else, and the run shows where.
+
+If the reply is `#44 was already handled`, the row isn't `pending_approval` any more: it was approved, rejected, or changed by hand.
+
+## The bot doesn't answer commands
+
+Same causes as [the buttons](#approve--reject-buttons-do-nothing). Also check the message: commands must start the message (`/status`, not `hey /status`). Anything the bot doesn't recognise gets the help text, so no reply at all means the update never reached n8n.
+
+## /status says the LinkedIn login is unknown
+
+`unknown (send /reconnected after reconnecting)` means `pipeline_settings` has no `linkedin_connected_at` row, or its value isn't a date (for example the placeholder text was left in). Send `/reconnected` to the bot. It writes the current time, and the next `/status` shows `0 days (60 left)`.
+
+If you didn't reconnect LinkedIn just now, that date will be a bit off. You can edit `value` in the table to the real date in ISO format.
+
+## No login reminder
+
+The 09:00 check reads `linkedin_connected_at` from `pipeline_settings` and only messages you from day 50. It's silent if:
+
+- the login is less than 50 days old (normal)
+- the row is missing or its value isn't a date: send `/reconnected`
+- the workflow isn't published, or Telegram is disabled
 
 ## A queued post didn't go out
 
 Check in this order:
 
 1. **The workflow is published.** Schedules only run while it's active.
-2. **The row is still `queued`.** Run `list`. If it's `failed`, read `error`.
+2. **The row is `queued`.** Run `list`. If it's `pending_approval`, it's waiting for you to tap Approve in Telegram. If it's `failed`, read `error`.
 3. **`scheduled_at` is what you meant.** It's shown in UTC in the table. If you sent a time without an offset, it may have been read as UTC instead of your local time. Always send an offset, like `+01:00`.
 4. **The workflow timezone** in workflow settings matches where you are. It affects the 8:00 and 3:00 schedules.
-5. **Several posts were due.** Only one goes out per 15-minute run, oldest first. The rest follow 15 minutes apart.
+5. **The quarter-hour checks.** The check runs at :00, :15, :30 and :45. A post set for 08:20 goes out at 08:30. Several due posts go out one per check, oldest first.
 6. **Executions.** Look for runs of `Every 15 minutes`. If they're missing, the instance was down or the workflow wasn't active.
 
-## Queue request returns an error instead of "queued"
+## An approved post didn't go out
 
-`scheduled_at` isn't a valid ISO 8601 date. The router only checks that it isn't empty, so a bad value gets as far as the data table insert and fails there. Use the form `2026-10-27T08:30:00+01:00`.
+Approving only changes the row from `pending_approval` to `queued`. Publishing is still done by the 15-minute check.
+
+- **Its time hasn't come yet.** The bot's reply says when: `Approved #44 · goes out Tue 27 Oct, 08:30`. The post goes out at the first check at or after that time.
+- **The time had passed when you approved.** The reply says `within 15 minutes`. It goes out at the next quarter hour.
+- **Other posts were due first.** One post per check, oldest `scheduled_at` first.
+- **It went out but failed.** Run `list` and read `error` on the row, or look for a **Post FAILED** message.
+
+If none of that fits, follow [A queued post didn't go out](#a-queued-post-didnt-go-out).
+
+## Cancel says "not found or not queued"
+
+`cancel` only works on rows with status `queued`. Check the row with `list`:
+
+- `pending_approval`: tap **✖ Reject** on the Telegram message instead.
+- `posted`: use `delete`.
+- `cancelled`, `failed` or `deleted`: nothing to cancel.
 
 ## Media link returns 404 after a week
 
 That's the cleanup working. Seven days after a post goes live (or is deleted, cancelled or fails), the nightly run empties its hosted images and the link returns 404. The post on LinkedIn is not affected, because LinkedIn keeps its own copy.
 
-Queued posts are never cleaned, however far out they're scheduled. If you want to reuse an image, upload it again.
+Queued posts are never cleaned, however far out they're scheduled. Posts waiting for approval are not protected: approve or reject them within a week if they use hosted images. If you want to reuse an image, upload it again.
 
 ## Edit or delete fails
 
@@ -170,4 +239,4 @@ Edits only change the text. To change images or an article card, delete the post
 
 ## Data table errors after import
 
-Errors like "Could not find data table" mean the `YOUR_DATA_TABLE_ID` placeholder wasn't replaced, or the table lives in another project. Copy the table ID from the table's URL, then either fix the JSON and re-import, or pick the table in each Data Table node. Column names must match [data-table.md](data-table.md) exactly.
+Errors like "Could not find data table" mean one of the table placeholders (`YOUR_POSTS_TABLE_ID`, `YOUR_IDEAS_TABLE_ID`, `YOUR_SETTINGS_TABLE_ID`) wasn't replaced, or a table lives in another project. `python3 scripts/doctor.py` should point at it. To fix it by hand, copy each table's ID from its URL, then either fix the JSON and re-import, or pick the right table in each Data Table node. Table and column names must match [data-table.md](data-table.md) exactly.

@@ -10,19 +10,24 @@ Content-Type: application/json
 
 The body is a JSON object. `action` picks what happens, and every action that changes something needs a `confirm` word. If the body doesn't match any action exactly, you get a `rejected` response and nothing happens.
 
-The webhook answers with the output of the last node that ran, as a single JSON object. A request returns once the whole path has finished, including the LinkedIn call, the log write and the Telegram message.
+The webhook answers with the output of the last node that ran, as a single JSON object. A request returns once the whole path has finished, including the LinkedIn call, the log write and the Telegram messages.
+
+There are ready-made curl scripts for every action in [examples/](../examples/).
 
 Contents:
 
 - [Authentication](#authentication)
 - [How a request is routed](#how-a-request-is-routed)
 - [post](#post): publish now (text, image, multi-image, article)
-- [queue](#queue): publish later
+- [queue](#queue): publish later, optionally after approval in Telegram
 - [edit](#edit): change a live post's text
 - [delete](#delete): delete a live post
 - [list](#list): last 20 log rows
 - [cancel](#cancel): remove a post from the queue
 - [upload](#upload): host an image on your server
+- [ideas](#ideas): list open post ideas
+- [idea_add](#idea_add): save an idea
+- [idea_update](#idea_update): mark an idea used, dropped or open
 - [GET /webhook/media](#get-webhookmedia): the public image link
 - [Rejected requests](#rejected-requests)
 - [HTTP errors](#http-errors)
@@ -41,12 +46,15 @@ The `Route by action` Switch checks these rules in order. The first match wins. 
 | Output | Matches when |
 |---|---|
 | `post` | `action` is `"post"` or missing, `text` is not empty, `confirm` is `"POST"`, `image_urls` (if sent) is an array of at most 20 |
-| `queue` | `action` is `"queue"`, `text` is not empty, `scheduled_at` is a valid ISO 8601 date, `confirm` is `"QUEUE"`, `image_urls` (if sent) is an array of at most 20 |
+| `queue` | `action` is `"queue"`, `text` is not empty, `scheduled_at` is not empty, `confirm` is `"QUEUE"`, `image_urls` (if sent) is an array of at most 20, `scheduled_at` parses as an ISO 8601 date |
 | `edit` | `action` is `"edit"`, `urn` starts with `urn:li:`, `text` is not empty, `confirm` is `"EDIT"` |
 | `delete` | `action` is `"delete"`, `urn` starts with `urn:li:`, `confirm` is `"DELETE"` |
 | `list` | `action` is `"list"` |
 | `cancel` | `action` is `"cancel"`, `row_id` is not empty, `confirm` is `"CANCEL"` |
 | `upload` | `action` is `"upload"`, `filename` and `data_base64` are not empty, `confirm` is `"UPLOAD"` |
+| `ideas` | `action` is `"ideas"` |
+| `idea_add` | `action` is `"idea_add"`, `text` is not empty after trimming, `confirm` is `"IDEA"` |
+| `idea_update` | `action` is `"idea_update"`, `idea_id` is a whole number, `status` is `used`, `dropped` or `open`, `used_in_row` (if sent) is a whole number, `confirm` is `"IDEA"` |
 | Rejected | anything else |
 
 Because `action` defaults to `post`, a body with just `text` and `confirm: "POST"` publishes. Keep that in mind if you write your own client.
@@ -158,7 +166,7 @@ Failure (LinkedIn refused, token expired, image could not be downloaded, and so 
 }
 ```
 
-A failed post still returns HTTP 200. Check `status`. Both outcomes are logged (`log_row_id` is the row id in `linkedin_posts`) and sent to Telegram. The exact `error` text depends on which node failed: multi-image posts produce `LinkedIn <status>: <body>`, the LinkedIn node produces its own error message.
+A failed post still returns HTTP 200. Check `status`. Both outcomes are logged (`log_row_id` is the row id in `linkedin_posts`) and sent to Telegram ([what the messages look like](telegram.md#notifications)). The exact `error` text depends on which node failed: multi-image posts produce `LinkedIn <status>: <body>`, the LinkedIn node produces its own error message.
 
 Keep the `urn`. You need it to edit or delete the post.
 
@@ -178,7 +186,7 @@ For multi-image posts, every image is uploaded before the post is created. If an
 
 ## queue
 
-Saves the post to `linkedin_posts` with status `queued`. The 15-minute schedule publishes it once `scheduled_at` has passed.
+Saves the post to `linkedin_posts` with status `queued`, or `pending_approval` if you ask for approval in Telegram. A check every 15 minutes publishes due `queued` posts.
 
 ### Fields
 
@@ -189,6 +197,7 @@ Same as [post](#post), plus:
 | `action` | yes | `"queue"` |
 | `scheduled_at` | yes | ISO 8601 with a UTC offset, for example `2026-10-27T08:30:00+01:00` or `2026-10-27T07:30:00Z` |
 | `confirm` | yes | `"QUEUE"` (not `"POST"`) |
+| `approval` | no | `"telegram"` holds the post until you tap **✅ Approve** in Telegram. Any other value, or leaving it out, queues it straight away. |
 
 Always include the offset. Without one, the time is open to interpretation by the data table and by the Telegram formatter, and the post can go out an hour or more off.
 
@@ -212,15 +221,30 @@ Always include the offset. Without one, the time is open to interpretation by th
 }
 ```
 
-`scheduled_at` is echoed back as you sent it. `row_id` is what you pass to [cancel](#cancel).
+With `"approval": "telegram"`, `status` is `"pending_approval"` instead. `scheduled_at` is echoed back as you sent it. `row_id` is what you pass to [cancel](#cancel).
+
+### With approval
+
+```json
+{
+  "action": "queue",
+  "text": "Monday morning post.",
+  "scheduled_at": "2026-10-27T08:30:00+01:00",
+  "approval": "telegram",
+  "confirm": "QUEUE"
+}
+```
+
+Telegram sends you the images and the full text with **✅ Approve** and **✖ Reject** buttons. Approve sets the row to `queued`; Reject sets it to `cancelled`. Until you tap one, the post never goes out, however late it gets. The `cancel` action doesn't work on pending rows; use Reject. Details in [telegram.md](telegram.md#approving-queued-posts).
 
 ### When it goes out
 
-- The schedule runs every 15 minutes and publishes at most one due post per run, oldest `scheduled_at` first. A post goes out within about 15 minutes after its time, later if several are due at once.
-- A time in the past is fine; the post goes out on the next run.
+- The check runs on the clock at :00, :15, :30 and :45 (in the workflow's timezone) and publishes at most one due `queued` post per run, oldest `scheduled_at` first.
+- A post scheduled on a quarter hour, like 08:30, goes out within seconds of that time. Any other time waits for the next check: 08:20 goes out at 08:30. If several are due at once, they go out one per check.
+- A time in the past is fine; the post goes out at the next check. The same goes for a post you approve after its time has passed.
 - When it publishes, the same row is updated to `posted` or `failed`. A failed queued post is not retried automatically. See [data-table.md](data-table.md#retrying-a-failed-post) for how to retry it.
 - To change a queued post, cancel it and queue it again, or edit the row in the n8n Data Table view.
-- The workflow does not validate `scheduled_at`. If it isn't a valid date, the insert fails and the webhook returns an n8n error instead of `queued`.
+- If `scheduled_at` doesn't parse as an ISO 8601 date, the request is rejected. The router doesn't check for an offset, though, so `2026-10-27T08:30:00` is accepted and may be read as UTC.
 
 ## edit
 
@@ -359,7 +383,7 @@ On an empty table the response is `{"posts":[]}`.
 
 ## cancel
 
-Removes a post from the queue by setting its status to `cancelled`. Only rows whose status is `queued` can be cancelled. Already published posts need [delete](#delete).
+Removes a post from the queue by setting its status to `cancelled`. Only rows whose status is `queued` can be cancelled. Posts still waiting for approval are dropped with the Reject button in Telegram. Already published posts need [delete](#delete).
 
 | Field | Required | Notes |
 |---|---|---|
@@ -381,7 +405,7 @@ Removes a post from the queue by setting its status to `cancelled`. Only rows wh
 { "status": "cancelled", "row_id": "44" }
 ```
 
-If no queued row has that id (wrong id, already posted, already cancelled):
+If no queued row has that id (wrong id, already posted, already cancelled, still `pending_approval`):
 
 ```json
 { "status": "not found or not queued", "row_id": "44" }
@@ -433,6 +457,90 @@ Size limit: n8n rejects request bodies over `N8N_PAYLOAD_SIZE_MAX` (16 MB by def
 
 Uploaded files are emptied 7 days after the post that uses them goes live or ends. Files that are never used in a logged post are not cleaned up. See [how-it-works.md](how-it-works.md#media-cleanup).
 
+## ideas
+
+Returns up to 50 open ideas from the `ideas` table, newest first. No confirm word, and it never changes anything.
+
+```json
+{ "action": "ideas" }
+```
+
+### Response
+
+```json
+{
+  "ideas": [
+    {
+      "id": 12,
+      "text": "What I learned running n8n on a free VM for six months",
+      "status": "open",
+      "source": "telegram",
+      "used_in_row": null,
+      "createdAt": "2026-10-25T18:40:02.000Z",
+      "updatedAt": "2026-10-25T18:40:02.000Z"
+    }
+  ]
+}
+```
+
+With no open ideas: `{"ideas":[]}`. Ideas marked `used` or `dropped` are not returned.
+
+## idea_add
+
+Saves an idea with status `open` and source `claude`.
+
+| Field | Required | Notes |
+|---|---|---|
+| `action` | yes | `"idea_add"` |
+| `text` | yes | The idea. Must contain more than whitespace. |
+| `confirm` | yes | `"IDEA"` |
+
+```json
+{
+  "action": "idea_add",
+  "text": "Post about the approval button and why I added it",
+  "confirm": "IDEA"
+}
+```
+
+### Response
+
+```json
+{ "status": "saved", "idea_id": 13 }
+```
+
+No Telegram message is sent.
+
+## idea_update
+
+Changes an idea's status, and optionally records which post it turned into.
+
+| Field | Required | Notes |
+|---|---|---|
+| `action` | yes | `"idea_update"` |
+| `idea_id` | yes | The idea's `id`, a whole number (a number or a numeric string) |
+| `status` | yes | `"used"`, `"dropped"` or `"open"` |
+| `used_in_row` | no | The `linkedin_posts` row id of the post (`row_id` or `log_row_id`). If left out, the current value is kept. |
+| `confirm` | yes | `"IDEA"` |
+
+```json
+{
+  "action": "idea_update",
+  "idea_id": 12,
+  "status": "used",
+  "used_in_row": 44,
+  "confirm": "IDEA"
+}
+```
+
+### Response
+
+```json
+{ "status": "updated", "idea_id": 12, "idea_status": "used" }
+```
+
+If there is no idea with that id, `status` is `"not found"` and nothing changes. No Telegram message is sent.
+
 ## GET /webhook/media
 
 ```
@@ -448,7 +556,7 @@ Anything that doesn't match a rule returns HTTP 200 with:
 ```json
 {
   "status": "rejected",
-  "reason": "Unknown action or missing fields/confirm. Actions: post(text,confirm=POST) | queue(text,scheduled_at,confirm=QUEUE) | edit(urn,text,confirm=EDIT) | delete(urn,confirm=DELETE) | list | cancel(row_id,confirm=CANCEL) | upload(filename,data_base64,confirm=UPLOAD). image_urls must be a list of up to 20 links; scheduled_at must be ISO 8601 with offset. Nothing was done."
+  "reason": "Unknown action or missing fields/confirm. Actions: post(text,confirm=POST) | queue(text,scheduled_at,confirm=QUEUE) | edit(urn,text,confirm=EDIT) | delete(urn,confirm=DELETE) | list | cancel(row_id,confirm=CANCEL) | upload(filename,data_base64,confirm=UPLOAD). image_urls must be a list of up to 20 links; scheduled_at must be ISO 8601 with offset. Ideas: ideas | idea_add(text,confirm=IDEA) | idea_update(idea_id,status=used|dropped|open,used_in_row?,confirm=IDEA). Nothing was done."
 }
 ```
 
@@ -462,7 +570,7 @@ Sending a request that should be rejected is a safe way to test the webhook and 
 |---|---|---|
 | 403 | `Authorization data is wrong!` | Missing or wrong `X-Claude-Key` |
 | 404 | `The requested webhook "POST claude-linkedin-post" is not registered.` | Workflow not published/active, or wrong path |
-| 500 | `Error in workflow` or similar | A node failed hard, for example a missing data table ID. Check Executions in n8n. |
+| 500 | `Error in workflow` or similar | A node failed hard, for example a data table ID that wasn't replaced. Check Executions in n8n, or run `python3 scripts/doctor.py`. |
 
 See [troubleshooting.md](troubleshooting.md) for fixes.
 

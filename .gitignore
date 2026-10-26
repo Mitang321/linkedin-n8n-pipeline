@@ -2,3 +2,4 @@
 *.local.json
 workflow/*.mine.json
 .DS_Store
+workflow/*.generated.json
